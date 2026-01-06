@@ -338,7 +338,7 @@ void MsGbServer::HandleRegist(MsSipMsg &sipMsg, shared_ptr<MsSocket> sock, MsIne
 }
 
 void MsGbServer::HandleMessage(MsSipMsg &sipMsg, shared_ptr<MsSocket> sock, MsInetAddr &addr,
-								char *body, int len)
+							   char *body, int len)
 {
 	MsSipMsg rspMsg;
 	rspMsg.CloneBasic(sipMsg);
@@ -418,7 +418,7 @@ void MsGbServer::HandleKeepalive(const char *domainID, MsSipMsg &rspMsg)
 }
 
 void MsGbServer::AddGbDevice(XMLElement *item, const char *domainID,
-							  shared_ptr<RegistDomain> dd)
+							 shared_ptr<RegistDomain> dd)
 {
 	shared_ptr<MsGbDevice> device = make_shared<MsGbDevice>(GB_DEV);
 
@@ -618,7 +618,7 @@ void MsGbServer::HandleRecord(XMLElement *root, const char *deviceID)
 		return;
 	}
 
-	shared_ptr<GbSessionCtx> &ctx = it->second;
+	shared_ptr<GbSessionCtx> ctx = it->second;
 	XMLElement *sumNum = root->FirstChildElement("SumNum");
 	int nSum = atoi(sumNum->GetText());
 	ctx->m_sum = nSum;
@@ -650,8 +650,6 @@ void MsGbServer::HandleRecord(XMLElement *root, const char *deviceID)
 
 		if (item->FirstChildElement("Type"))
 			j["type"] = item->FirstChildElement("Type")->GetText();
-		else
-			j["type"] = "unknown";
 
 		ctx->m_record["result"].emplace_back(j);
 
@@ -693,7 +691,7 @@ void MsGbServer::HandleRecord(XMLElement *root, const char *deviceID)
 }
 
 void MsGbServer::HandleInvite(MsSipMsg &sipMsg, shared_ptr<MsSocket> sock,
-							   MsInetAddr &addr, char *body, int len)
+							  MsInetAddr &addr, char *body, int len)
 {
 	// not implemented yet
 	MsSipMsg rspMsg;
@@ -731,7 +729,7 @@ void MsGbServer::HandleResponse(MsSipMsg &sipMsg, shared_ptr<MsSocket> sock, cha
 }
 
 void MsGbServer::HandleInviteRsp(MsSipMsg &sipMsg, shared_ptr<MsSocket> sock, int status,
-								  char *body, int len)
+								 char *body, int len)
 {
 
 	auto it = m_inviteCtx.find(sipMsg.m_callID.m_value);
@@ -886,7 +884,7 @@ void MsGbServer::HandleCancel(MsSipMsg &sipMsg, shared_ptr<MsSocket> sock, MsIne
 }
 
 void MsGbServer::HandleNotify(MsSipMsg &sipMsg, shared_ptr<MsSocket> sock, MsInetAddr &addr,
-							   char *body, int len)
+							  char *body, int len)
 {
 	MsSipMsg rspMsg;
 	rspMsg.CloneBasic(sipMsg);
@@ -1148,6 +1146,7 @@ void MsGbServer::InitRecordInfo(MsMsg &msg)
 	do
 	{
 		string devID, st, et;
+		string recordType;
 
 		try
 		{
@@ -1155,6 +1154,7 @@ void MsGbServer::InitRecordInfo(MsMsg &msg)
 			devID = j["deviceId"].get<string>();
 			st = j["startTime"].get<string>();
 			et = j["endTime"].get<string>();
+			recordType = j["type"].is_null() ? "" : j["type"].get<string>();
 		}
 		catch (json::exception &e)
 		{
@@ -1191,7 +1191,10 @@ void MsGbServer::InitRecordInfo(MsMsg &msg)
 
 		record.m_contentType.SetValue("Application/MANSCDP+xml");
 
-		string recordType = MsConfig::Instance()->GetConfigStr("queryRecordType");
+		if (recordType.size() == 0)
+		{
+			recordType = MsConfig::Instance()->GetConfigStr("queryRecordType");
+		}
 
 		char body[512];
 		int len = sprintf(body, "<?xml version=\"1.0\"?>\r\n<Query>\r\n<CmdType>RecordInfo</CmdType>\r\n\

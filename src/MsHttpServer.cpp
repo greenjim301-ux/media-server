@@ -553,7 +553,7 @@ void MsHttpServer::HandleHttpReq(shared_ptr<MsEvent> evt, MsHttpMsg &msg,
 {
     static map<string, httpHandle> gReqMap = {
 
-        // TODO: check preset and record api
+        // TODO: check record api
         {"/device", &MsHttpServer::DeviceProcess},
         {"/device/url", &MsHttpServer::GetLiveUrl},
         {"/device/preset", &MsHttpServer::QueryPreset},
