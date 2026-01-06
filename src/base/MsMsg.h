@@ -1,0 +1,60 @@
+#pragma once
+
+#include "MsOsConfig.h"
+#include <string>
+
+using namespace std;
+
+enum MS_MSG_ID
+{
+	MS_EXIT = 1,
+	MS_REG_TIME_OUT,
+	MS_INIT_CATALOG,
+	MS_HTTP_INIT_CATALOG,
+	MS_CATALOG_TIME_OUT,
+	MS_INIT_RECORD,
+	MS_RECORD_TIME_OUT,
+	MS_GEN_HTTP_RSP,
+	MS_INIT_INVITE,
+	MS_INVITE_CALL_RSP,
+	MS_INVITE_TIME_OUT,
+	MS_MEDIA_NODE_TIMER,
+	MS_PTZ_CONTROL,
+	MS_ONVIF_PROBE,
+	MS_ONVIF_PROBE_TIMEOUT,
+	MS_ONVIF_PROBE_FINISH,
+	MS_QUERY_PRESET,
+	MS_QUERY_PRESET_TIMEOUT,
+	MS_GB_SERVER_HANDLER_CLOSE,
+	MS_GET_REGIST_DOMAIN,
+	MS_STOP_INVITE_CALL,
+};
+
+enum MS_SERVICE_TYPE
+{
+	MS_HTTP_SERVER = 1,
+	MS_HTTP_CLIENT,
+	MS_GB_SERVER,
+	MS_GB_SOURCE,
+	MS_FILE_SOURCE,
+	MS_HTTP_STREAM,
+	MS_RTSP_SOURCE,
+	MS_RTSP_SERVER,
+};
+
+class MsMsg
+{
+public:
+	MsMsg();
+
+	int m_sessinID;
+	int m_msgID;
+	int m_srcType;
+	int m_srcID;
+	int m_dstType;
+	int m_dstID;
+
+	int m_intVal;
+	string m_strVal;
+	void *m_ptr;
+};
