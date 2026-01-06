@@ -10,7 +10,7 @@ static int m_seqID = 1;
 static std::mutex m_mutex;
 
 std::shared_ptr<MsMediaSource>
-MsSourceFactory::CreateMediaSource(const std::string &streamID)
+MsSourceFactory::CreateLiveSource(const std::string &streamID)
 {
     auto device = MsDevMgr::Instance()->FindDevice(streamID);
     if (!device)
@@ -69,4 +69,24 @@ MsSourceFactory::CreateVodSource(const std::string &streamID,
 
     std::lock_guard<std::mutex> lk(m_mutex);
     return std::make_shared<MsFileSource>(streamID, fn, m_seqID++);
+}
+
+std::shared_ptr<MsMediaSource> MsSourceFactory::CreateGbvodSource(
+    const std::string &streamID, const std::string &streamInfo)
+{
+    //%s-%lld-%lld-%d", devID.c_str(), nSt, nEt, nType
+    std::vector<std::string> parts = SplitString(streamInfo, "-");
+    if (parts.size() != 4)
+    {
+        MS_LOG_WARN("invalid gbvod streamInfo:%s", streamInfo.c_str()); 
+        return nullptr;
+    }
+    
+    SGbContext *ctx = new SGbContext;
+    ctx->gbID = parts[0];
+    ctx->type = std::stoi(parts[3]);
+    ctx->startTime = parts[1];
+    ctx->endTime = parts[2];
+    std::lock_guard<std::mutex> lk(m_mutex);
+    return std::make_shared<MsGbSource>(streamID, ctx, m_seqID++);
 }

@@ -13,6 +13,7 @@ A  media server implementation supporting GB/T 28181, RTSP, and HTTP streaming p
   - [Add RTSP Device](#add-rtsp-device)
   - [Get Device Preview URL](#get-device-preview-url)
   - [GB28181 Integration](#gb28181-integration)
+  - [GB28181 Record Playback](#gb28181-record-playback)
 
 ## Features
 
@@ -21,9 +22,9 @@ A  media server implementation supporting GB/T 28181, RTSP, and HTTP streaming p
 - **HTTP Server**: Built-in HTTP server for management and signaling.
 - **HTTP Streaming**: Support for media streaming over HTTP.
 - **ONVIF Support**: Includes handling for ONVIF protocol.
-- **Device Management**: Manages connected devices (`MsDevMgr`).
-- **Database Integration**: Uses SQLite for data persistence (`MsDbMgr`).
-- **Extensible Architecture**: Built with a modular design using a reactor pattern (`MsReactor`).
+- **Device Management**: Manages connected devices.
+- **Database Integration**: Uses SQLite for data persistence.
+- **Extensible Architecture**: Built with a modular design using a reactor pattern.
 
 ## Dependencies
 
@@ -32,8 +33,8 @@ The project requires the following dependencies:
 - **C++ Compiler**: Supports C++14 standard.
 - **CMake**: Version 3.10 or higher.
 - **FFmpeg**: Requires `libavcodec`, `libavformat`, and `libavutil`.
-- **SQLite3**: Embedded source included.
-- **TinyXML2**: Embedded source included.
+- **SQLite3**: Source included.
+- **TinyXML2**: Source included.
 
 
 ## Build Instructions
@@ -54,11 +55,11 @@ The project requires the following dependencies:
    cmake --build .
    ```
 
-The executable `media_server` will be generated in the `output` directory (parent of `build`).
+The executable `media_server` will be generated in the `output` directory.
 
 ## Configuration
 
-Configuration is loaded from a JSON file. The `conf` directory in the output folder typically contains `config.json`. The server sets up logging, database connections, and starts various service modules (GB, RTSP, HTTP) based on this configuration.
+Configuration is loaded from a JSON file. The `conf` directory in the output folder typically contains `config.json`. The server sets up logging, and starts various service modules (GB, RTSP, HTTP) based on this configuration.
 
 **Note:** You need to set \`localBindIP\` in \`config.json\` to the server's IP address before starting the service.
 
@@ -239,3 +240,60 @@ curl -X POST http://127.0.0.1:26080/device/url \
    ```
 
    Once the device channels are synced, you can use the [Get Device List](#get-device-list) and [Get Device Preview URL](#get-device-preview-url) APIs to access the video streams.
+
+### GB28181 Record Playback
+
+1. **Query Record List**
+
+   To query the recording files on a device, send a POST request to `/gb/record`.
+
+   **URL:** `http://<server_ip>:<httpPort>/gb/record`
+   **Method:** `POST`
+
+   **Body:**
+   ```json
+   {
+       "deviceId": "34020000001320000001",
+       "startTime": "2023-10-27T10:00:00",
+       "endTime": "2023-10-27T11:00:00",
+       "type": "all"
+   }
+   ```
+
+   - `deviceId`: GB device ID (must be sub-device/channel ID)
+   - `startTime`: Start time (ISO 8601 format or similar string)
+   - `endTime`: End time
+   - `type`: Record type ("all", etc.)
+
+
+2. **Get Playback URL**
+
+   After identifying the recording you want to play, request the playback stream URL.
+
+   **URL:** `http://<server_ip>:<httpPort>/gb/record/url`
+   **Method:** `POST`
+
+   **Body:**
+   ```json
+   {
+       "deviceId": "34020000001320000001",
+       "startTime": "2023-10-27T10:00:00",
+       "endTime": "2023-10-27T11:00:00",
+       "type": "time"
+   }
+   ```
+
+   **Response:**
+   ```json
+   {
+       "code": 0,
+       "msg": "success",
+       "result": {
+           "rtspUrl": "rtsp://192.168.1.100:554/gbvod/randStr/34020000001320000001-start-end",
+           "httpTsUrl": "http://192.168.1.100:8080/gbvod/randStr/34020000001320000001-start-end.ts",
+           "httpFlvUrl": "http://192.168.1.100:8080/gbvod/randStr/34020000001320000001-start-end.flv"
+       }
+   }
+   ```
+
+   You can use RTSP or HTTP-FLV/TS players (like mpegts.js) to play these playback streams.

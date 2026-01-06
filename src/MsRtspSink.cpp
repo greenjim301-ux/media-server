@@ -268,7 +268,7 @@ int MsRtspServer::HandleDescribe(MsRtspMsg &msg, shared_ptr<MsEvent> evt)
         }
         else
         {
-            source = MsSourceFactory::CreateMediaSource(streamID);
+            source = MsSourceFactory::CreateLiveSource(streamID);
             if (!source)
             {
                 MS_LOG_WARN("create source failed for stream: %s", streamID.c_str());
@@ -299,10 +299,22 @@ int MsRtspServer::HandleDescribe(MsRtspMsg &msg, shared_ptr<MsEvent> evt)
         std::string filename = s[3];
         std::string format = "rtsp";
 
+        // check media source exists
+        auto source = MsResManager::GetInstance().GetMediaSource(streamID);
+        if (source)
+        {
+            MS_LOG_WARN("vod source already exists for stream: %s",
+                        streamID.c_str());
+            rsp.m_status = "403";
+            rsp.m_reason = "Forbidden";
+            SendRtspMsg(rsp, evt->GetSocket());
+            return -1;
+        }
+
         std::shared_ptr<MsMeidaSink> sink = std::make_shared<MsRtspSink>(
             format, streamID, ++m_seqID, evt->GetSharedSocket(), msg);
 
-        auto source = MsSourceFactory::CreateVodSource(streamID, filename);
+        source = MsSourceFactory::CreateVodSource(streamID, filename);
         if (!source)
         {
             MS_LOG_WARN("create VOD source failed for stream: %s", streamID.c_str());
@@ -317,6 +329,51 @@ int MsRtspServer::HandleDescribe(MsRtspMsg &msg, shared_ptr<MsEvent> evt)
         this->DelEvent(evt);
         return 0;
     }
+    else if(s[1] == "gbvod")
+    {
+        if (s.size() < 4)
+        {
+            MS_LOG_WARN("invalid gbvod uri:%s", msg.m_uri.c_str());
+            rsp.m_status = "404";
+            rsp.m_reason = "Not Found";
+            SendRtspMsg(rsp, evt->GetSocket());
+            return -1;
+        }
+
+        std::string streamID = s[2];
+        std::string streamInfo = s[3];
+        std::string format = "rtsp";
+
+        // check media source exists
+        auto source = MsResManager::GetInstance().GetMediaSource(streamID);
+        if (source)
+        {
+            MS_LOG_WARN("gbvod source already exists for stream: %s",
+                        streamID.c_str());
+            rsp.m_status = "403";
+            rsp.m_reason = "Forbidden";
+            SendRtspMsg(rsp, evt->GetSocket());
+            return -1;
+        }
+
+        std::shared_ptr<MsMeidaSink> sink = std::make_shared<MsRtspSink>(
+            format, streamID, ++m_seqID, evt->GetSharedSocket(), msg);
+
+        source = MsSourceFactory::CreateGbvodSource(streamID, streamInfo);
+        if (!source)
+        {
+            MS_LOG_WARN("create GBVOD source failed for stream: %s", streamID.c_str());
+            rsp.m_status = "404";
+            rsp.m_reason = "Not Found";
+            SendRtspMsg(rsp, evt->GetSocket());
+            return -1;
+        }
+        source->AddSink(sink);
+        source->Work();
+
+        this->DelEvent(evt);
+        return 0;
+    }   
     else
     {
         MS_LOG_WARN("unsupported uri:%s", msg.m_uri.c_str());

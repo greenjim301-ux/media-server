@@ -464,7 +464,7 @@ void MsHttpStream::HandleHttpReq(shared_ptr<MsEvent> evt, MsHttpMsg &msg,
         }
         else
         {
-            source = MsSourceFactory::CreateMediaSource(streamID);
+            source = MsSourceFactory::CreateLiveSource(streamID);
             if (!source)
             {
                 MS_LOG_WARN("create source failed for stream: %s", streamID.c_str());
@@ -527,6 +527,64 @@ void MsHttpStream::HandleHttpReq(shared_ptr<MsEvent> evt, MsHttpMsg &msg,
 
         this->DelEvent(evt);
     }
+    else if(s[1] == "gbvod")
+    {
+        if (s.size() < 4)
+        {
+            MS_LOG_WARN("invalid gbvod uri:%s", msg.m_uri.c_str());
+            json rsp;
+            rsp["code"] = 1;
+            rsp["msg"] = "invalid uri";
+            SendHttpRsp(evt->GetSocket(), rsp.dump());
+            return;
+        }
+
+        std::string streamID = s[2];
+        std::vector<std::string> fmtInfo = SplitString(s[3], ".");
+        std::string streamInfo = fmtInfo[0];
+        std::string format = (fmtInfo.size() > 1) ? fmtInfo[1] : "flv";
+
+        if (format != "flv" && format != "ts")
+        {
+            MS_LOG_WARN("unsupported format:%s", format.c_str());
+            json rsp;
+            rsp["code"] = 1;
+            rsp["msg"] = "unsupported format";
+            SendHttpRsp(evt->GetSocket(), rsp.dump());
+            return;
+        }
+        
+        std::shared_ptr<MsMediaSource> source =
+            MsResManager::GetInstance().GetMediaSource(streamID);
+        if (source)
+        {
+            MS_LOG_WARN("gbvod source already exists for stream: %s",
+                        streamID.c_str());
+            json rsp;
+            rsp["code"] = 1;
+            rsp["msg"] = "gbvod source already exists";
+            SendHttpRsp(evt->GetSocket(), rsp.dump());
+            return;
+        }
+
+        std::shared_ptr<MsMeidaSink> sink = std::make_shared<MsHttpSink>(
+            format, streamID, ++m_seqID, evt->GetSharedSocket());
+
+        source = MsSourceFactory::CreateGbvodSource(streamID, streamInfo);
+        if (!source)
+        {
+            MS_LOG_WARN("create source failed for stream: %s", streamID.c_str());
+            json rsp;
+            rsp["code"] = 1;
+            rsp["msg"] = "create source failed";
+            SendHttpRsp(evt->GetSocket(), rsp.dump());
+            return;
+        }
+        source->AddSink(sink);
+        source->Work();
+
+        this->DelEvent(evt);
+    }   
     else
     {
         MS_LOG_WARN("unsupported uri:%s", msg.m_uri.c_str());

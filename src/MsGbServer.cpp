@@ -1732,7 +1732,7 @@ void MsGbServer::InitInvite(MsMsg &msg)
 	BuildSipMsg(m_ip, m_port, m_gbServerId, dstIP, dstPort, reqID,
 				this->GenCSeq(), "INVITE", invite);
 	BuildContact(invite.m_contact, m_gbServerId, m_ip, m_port);
-	BuildSubject(invite.m_subject, reqID, m_gbServerId, true);
+	BuildSubject(invite.m_subject, reqID, m_gbServerId, type == 0);
 	invite.m_contentType.SetValue("application/sdp");
 
 	string mapIP = MsDevMgr::Instance()->GetMapIP(rtpIP);
