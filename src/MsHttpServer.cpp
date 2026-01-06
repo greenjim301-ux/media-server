@@ -990,20 +990,18 @@ void MsHttpServer::PtzControl(shared_ptr<MsEvent> evt, MsHttpMsg &msg,
             return SendHttpRsp(evt->GetSocket(), rsp.dump());
         }
 
-        if (dev->m_ipaddr.empty() || dev->m_port < 1 || dev->m_user.empty() ||
-            dev->m_pass.empty() || dev->m_onvifprofile.empty() ||
-            dev->m_onvifptzurl.empty())
-        {
-            rsp["code"] = 1;
-            rsp["msg"] = "param error";
-            return SendHttpRsp(evt->GetSocket(), rsp.dump());
-        }
-
-        if (dev->m_protocol == RTSP_DEV || dev->m_protocol == ONVIF_DEV)
+        if ((dev->m_protocol == RTSP_DEV || dev->m_protocol == ONVIF_DEV) &&
+            dev->m_onvifptzurl.size() && dev->m_onvifprofile.size())
         {
             thread ptzx(MsOnvifHandler::OnvifPtzControl, dev->m_user, dev->m_pass,
                         dev->m_onvifptzurl, dev->m_onvifprofile, presetID, ptzCmd, timeout);
             ptzx.detach();
+        }
+        else
+        {
+            rsp["code"] = 1;
+            rsp["msg"] = "dev not support ptz";
+            return SendHttpRsp(evt->GetSocket(), rsp.dump());
         }
     }
     catch (json::exception &e)
