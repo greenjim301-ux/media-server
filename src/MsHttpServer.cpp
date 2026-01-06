@@ -815,17 +815,12 @@ void MsHttpServer::GetPlaybackUrl(shared_ptr<MsEvent> evt, MsHttpMsg &msg,
         {
             nType = 1;
         }
-        else if (type == "local")
-        {
-            nType = 4;
-        }
 
         MsConfig *conf = MsConfig::Instance();
         char bb[512];
         string rid = GenRandStr(16);
 
-        sprintf(bb, "%s-%lld-%lld-%d-%s", devID.c_str(), nSt, nEt, nType,
-                rid.c_str());
+        sprintf(bb, "%s-%lld-%lld-%d", devID.c_str(), nSt, nEt, nType);
         string keyId = bb;
         string emptyIP;
 
@@ -833,10 +828,8 @@ void MsHttpServer::GetPlaybackUrl(shared_ptr<MsEvent> evt, MsHttpMsg &msg,
         if (!mn.get())
         {
             MS_LOG_ERROR("no media node");
-
             jRsp["code"] = 1;
             jRsp["msg"] = "no media node";
-
             return SendHttpRsp(evt->GetSocket(), jRsp.dump());
         }
 
@@ -850,20 +843,22 @@ void MsHttpServer::GetPlaybackUrl(shared_ptr<MsEvent> evt, MsHttpMsg &msg,
             ip = mn->httpMediaIP;
         }
 
-        sprintf(bb, "rtsp://%s:%d/gbvod/%s", ip.c_str(), mn->rtspPort,
-                keyId.c_str());
+        json r;
+        sprintf(bb, "rtsp://%s:%d/gbvod/%s/%s", ip.c_str(), mn->rtspPort,
+                rid.c_str(), keyId.c_str());
+        r["rtspUrl"] = bb;
 
-        jRsp["rtspUrl"] = bb;
+        sprintf(bb, "http://%s:%d/gbvod/%s/%s.ts", ip.c_str(), mn->httpStreamPort,
+                rid.c_str(), keyId.c_str());
+        r["httpTsUrl"] = bb;
 
-        sprintf(bb, "http://%s:%d/tsvod/%s.ts", ip.c_str(), mn->httpPort,
-                keyId.c_str());
-
-        jRsp["tsUrl"] = bb;
-
-        jRsp["httpUrl"] = bb;
+        sprintf(bb, "http://%s:%d/gbvod/%s/%s.flv", ip.c_str(), mn->httpStreamPort,
+                rid.c_str(), keyId.c_str());
+        r["httpFlvUrl"] = bb;
 
         jRsp["code"] = 0;
         jRsp["msg"] = "success";
+        jRsp["result"] = r;
     }
     catch (json::exception &e)
     {
