@@ -243,7 +243,7 @@ void MsOnvifHandler::QueryPreset(string user, string passwd,
 	json rsp;
 	rsp["code"] = 0;
 	rsp["msg"] = "ok";
-	rsp["presetList"] = json::array();
+	rsp["result"] = json::array();
 
 	MsMsg msRsp;
 	msRsp.m_msgID = MS_GEN_HTTP_RSP;
@@ -349,7 +349,7 @@ void MsOnvifHandler::QueryPreset(string user, string passwd,
 				string presetToken(p1, p - p1);
 
 				j["presetID"] = presetToken;
-				rsp["presetList"].emplace_back(j);
+				rsp["result"].emplace_back(j);
 
 				pbuf = p + 1;
 			}

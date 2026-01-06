@@ -154,12 +154,21 @@ void MsHttpServer::QueryPreset(shared_ptr<MsEvent> evt, MsHttpMsg &msg,
             qr.m_dstID = 1;
             this->PostMsg(qr);
         }
-        else if (dev->m_protocol == RTSP_DEV ||
-                 dev->m_protocol == ONVIF_DEV)
+        else if ((dev->m_protocol == RTSP_DEV || dev->m_protocol == ONVIF_DEV) &&
+                 dev->m_onvifptzurl.size() && dev->m_onvifprofile.size())
         {
             thread ptzx(MsOnvifHandler::QueryPreset, dev->m_user, dev->m_pass,
-                        dev->m_owner, dev->m_remark, ++m_seqID);
+                        dev->m_onvifptzurl, dev->m_onvifprofile, ++m_seqID);
             ptzx.detach();
+        }
+        else
+        {
+            MS_LOG_WARN("dev:%s not support preset query", devId.c_str());
+            json rsp;
+            rsp["code"] = 1;
+            rsp["msg"] = "dev not support preset query";
+            SendHttpRsp(evt->GetSocket(), rsp.dump());
+            return;
         }
 
         m_evts.emplace(m_seqID, evt);
@@ -703,7 +712,7 @@ void MsHttpServer::GetLiveUrl(shared_ptr<MsEvent> evt, MsHttpMsg &msg,
     GetParam("deviceId", deviceId, msg.m_uri);
     GetParam("netType", netType, msg.m_uri);
 
-    if(netType.size())
+    if (netType.size())
     {
         nNetType = atoi(netType.c_str());
     }
@@ -910,8 +919,8 @@ void MsHttpServer::GetMediaNode(shared_ptr<MsEvent> evt, MsHttpMsg &msg,
         nd["nodeIP"] = nn.second->nodeIp;
         nd["httpPort"] = nn.second->httpPort;
         nd["httpStreamPort"] = nn.second->httpStreamPort;
-        nd["rtspPort"] = nn.second->rtspPort;    
-        nd["httpMediaIP"] = nn.second->httpMediaIP;  
+        nd["rtspPort"] = nn.second->rtspPort;
+        nd["httpMediaIP"] = nn.second->httpMediaIP;
         j["result"].emplace_back(nd);
     }
 
