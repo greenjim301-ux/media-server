@@ -163,3 +163,70 @@ curl -X POST http://127.0.0.1:26080/device/url \
 ```
 
 **Note:** You can use [mpegts.js](https://github.com/xqq/mpegts.js) to play HTTP-FLV/TS streams in the browser.
+
+### GB28181 Integration
+
+1. **Get GB Server Information**
+
+   Retrieve the server information required to configure your GB28181 device or platform.
+
+   **URL:** `http://<server_ip>:<httpPort>/gb/server`
+   **Method:** `GET`
+
+   **Example:**
+   ```bash
+   curl -X GET http://127.0.0.1:26080/gb/server
+   ```
+
+   **Response:**
+   ```json
+   {
+       "code": 0,
+       "msg": "success",
+       "result": {
+           "id": "34020000002000000001",
+           "ip": "192.168.1.100",
+           "port": 5080,
+           "pass": "12345678",
+           "rtpTransport": 2
+       }
+   }
+   ```
+
+   **Note on `rtpTransport`:**
+   The `rtpTransport` field indicates the transport method the GB server uses to receive streams from the device or platform:
+   - `0`: UDP
+   - `1`: TCP Active
+   - `2`: TCP Passive (Default)
+
+   You can change this value by modifying the `rtpTransport` field in `conf/config.json`.
+
+2. **Configure GB Device/Platform**
+
+   Use the information from the previous step (`id`, `ip`, `port`, `pass`) to configure the "SIP Server" or "Platform Access" settings on your GB28181 device or platform.
+
+3. **Verify Registration**
+
+   After configuration, the device should register automatically. Check the registered domains/devices.
+
+   **URL:** `http://<server_ip>:<httpPort>/gb/domain`
+   **Method:** `GET`
+
+   **Example:**
+   ```bash
+   curl -X GET http://127.0.0.1:26080/gb/domain
+   ```
+
+4. **Sync Device Channel List**
+
+   The server usually syncs the device list automatically upon registration. If this does not happen, you can trigger it manually.
+
+   **URL:** `http://<server_ip>:<httpPort>/gb/catalog`
+   **Method:** `GET`
+
+   **Example:**
+   ```bash
+   curl -X GET http://127.0.0.1:26080/gb/catalog
+   ```
+
+   Once the device channels are synced, you can use the [Get Device List](#get-device-list) and [Get Device Preview URL](#get-device-preview-url) APIs to access the video streams.
