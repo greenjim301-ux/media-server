@@ -1,26 +1,22 @@
 #include "MsHttpHandler.h"
+#include "MsCommon.h"
 #include "MsEvent.h"
 #include "MsHttpServer.h"
 #include "MsLog.h"
-#include "MsCommon.h"
-#include <string.h>
 #include "nlohmann/json.hpp"
 #include <map>
+#include <string.h>
 
 using json = nlohmann::json;
 
 MsHttpAcceptHandler::MsHttpAcceptHandler(const shared_ptr<MsIHttpServer> &server)
-	: m_server(server)
-{
-}
+    : m_server(server) {}
 
-void MsHttpAcceptHandler::HandleRead(shared_ptr<MsEvent> evt)
-{
+void MsHttpAcceptHandler::HandleRead(shared_ptr<MsEvent> evt) {
 	MsSocket *sock = evt->GetSocket();
 	shared_ptr<MsSocket> s;
 
-	if (sock->Accept(s))
-	{
+	if (sock->Accept(s)) {
 		MS_LOG_WARN("accept err:%d", MS_LAST_ERROR);
 		return;
 	}
@@ -30,30 +26,21 @@ void MsHttpAcceptHandler::HandleRead(shared_ptr<MsEvent> evt)
 	m_server->AddEvent(msEvent);
 }
 
-void MsHttpAcceptHandler::HandleClose(shared_ptr<MsEvent> evt)
-{
-	m_server->DelEvent(evt);
-}
+void MsHttpAcceptHandler::HandleClose(shared_ptr<MsEvent> evt) { m_server->DelEvent(evt); }
 
 MsHttpHandler::MsHttpHandler(const shared_ptr<MsIHttpServer> &server)
-	: m_server(server), m_bufSize(DEF_BUF_SIZE), m_bufOff(0)
-{
+    : m_server(server), m_bufSize(DEF_BUF_SIZE), m_bufOff(0) {
 	m_buf = (char *)malloc(m_bufSize);
 }
 
-MsHttpHandler::~MsHttpHandler()
-{
-	free(m_buf);
-}
+MsHttpHandler::~MsHttpHandler() { free(m_buf); }
 
-void MsHttpHandler::HandleRead(shared_ptr<MsEvent> evt)
-{
+void MsHttpHandler::HandleRead(shared_ptr<MsEvent> evt) {
 	MsSocket *sock = evt->GetSocket();
 
 	int recv = sock->Recv(m_buf + m_bufOff, m_bufSize - 1 - m_bufOff);
 
-	if (recv <= 0)
-	{
+	if (recv <= 0) {
 		return;
 	}
 
@@ -62,19 +49,13 @@ void MsHttpHandler::HandleRead(shared_ptr<MsEvent> evt)
 
 	char *p2 = m_buf;
 
-	while (m_bufOff)
-	{
-		if (!IsHeaderComplete(p2))
-		{
-			if (m_bufOff)
-			{
-				if (m_bufOff > 16384)
-				{
+	while (m_bufOff) {
+		if (!IsHeaderComplete(p2)) {
+			if (m_bufOff) {
+				if (m_bufOff > 16384) {
 					MS_LOG_ERROR("left buf over 16k, reset");
 					m_bufOff = 0;
-				}
-				else if (p2 != m_buf)
-				{
+				} else if (p2 != m_buf) {
 					MS_LOG_DEBUG("http buf left:%d", m_bufOff);
 					memmove(m_buf, p2, m_bufOff);
 				}
@@ -90,8 +71,7 @@ void MsHttpHandler::HandleRead(shared_ptr<MsEvent> evt)
 
 		int cntLen = msg.m_contentLength.GetIntVal();
 		// if cntLen over 1.5GB, reject
-		if (cntLen < 0 || cntLen > 0x60000000)
-		{
+		if (cntLen < 0 || cntLen > 0x60000000) {
 			MS_LOG_ERROR("content len err:%d", cntLen);
 			m_bufOff = 0;
 			m_server->DelEvent(evt);
@@ -100,19 +80,16 @@ void MsHttpHandler::HandleRead(shared_ptr<MsEvent> evt)
 
 		int left = m_bufOff - (p2 - oriP2);
 
-		if (left < cntLen)
-		{
+		if (left < cntLen) {
 			int headrLen = p2 - oriP2;
 			p2 = oriP2;
 
-			if (m_bufOff && p2 != m_buf)
-			{
+			if (m_bufOff && p2 != m_buf) {
 				MS_LOG_DEBUG("http buf left:%d", m_bufOff);
 				memmove(m_buf, p2, m_bufOff);
 			}
 
-			if (headrLen + cntLen >= m_bufSize)
-			{
+			if (headrLen + cntLen >= m_bufSize) {
 				int newBufSize = headrLen + cntLen + 1024;
 				char *newBuf = (char *)malloc(newBufSize);
 				memcpy(newBuf, m_buf, m_bufOff);
@@ -134,8 +111,7 @@ void MsHttpHandler::HandleRead(shared_ptr<MsEvent> evt)
 		m_bufOff -= (p2 - oriP2);
 	}
 
-	if (m_bufSize > DEF_BUF_SIZE)
-	{
+	if (m_bufSize > DEF_BUF_SIZE) {
 		printf("relase big mem\n");
 
 		free(m_buf);
@@ -144,7 +120,4 @@ void MsHttpHandler::HandleRead(shared_ptr<MsEvent> evt)
 	}
 }
 
-void MsHttpHandler::HandleClose(shared_ptr<MsEvent> evt)
-{
-	m_server->DelEvent(evt);
-}
+void MsHttpHandler::HandleClose(shared_ptr<MsEvent> evt) { m_server->DelEvent(evt); }

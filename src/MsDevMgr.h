@@ -1,16 +1,15 @@
 #pragma once
 
-#include <mutex>
-#include <vector>
-#include <set>
-#include <map>
 #include "MsCommon.h"
 #include "nlohmann/json.hpp"
+#include <map>
+#include <mutex>
+#include <set>
+#include <vector>
 
 using json = nlohmann::json;
 
-enum DEV_PRO
-{
+enum DEV_PRO {
 	UNKNOWN_DEV,
 	GB_DEV,
 	RTSP_DEV,
@@ -18,8 +17,7 @@ enum DEV_PRO
 	ONVIF_DEV,
 };
 
-enum MS_DEV_TYPE
-{
+enum MS_DEV_TYPE {
 	UNKNOWN_TYPE,
 	CAMERA_TYPE,
 	CIVIL_TYPE,
@@ -29,8 +27,7 @@ enum MS_DEV_TYPE
 	NVR_TYPE,
 };
 
-class MsGbDevice
-{
+class MsGbDevice {
 public:
 	MsGbDevice(int pro);
 
@@ -63,8 +60,7 @@ public:
 	string m_onvifptzurl;
 };
 
-class ModDev
-{
+class ModDev {
 public:
 	ModDev();
 
@@ -91,8 +87,7 @@ public:
 	string m_onvifptzurl;
 };
 
-class FindDev
-{
+class FindDev {
 public:
 	FindDev();
 
@@ -109,8 +104,7 @@ public:
 	int protocol;
 };
 
-class MsDevMgr
-{
+class MsDevMgr {
 public:
 	MsDevMgr() = default;
 

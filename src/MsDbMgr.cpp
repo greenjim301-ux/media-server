@@ -1,29 +1,22 @@
 #include "MsDbMgr.h"
 
-#include "MsDbMgr.h"
 #include "MsConfig.h"
+#include "MsDbMgr.h"
 
 unique_ptr<MsDbMgr> MsDbMgr::m_instance;
 mutex MsDbMgr::m_mutex;
 
-MsDbMgr::MsDbMgr()
-	: m_sql(nullptr)
-{
-}
+MsDbMgr::MsDbMgr() : m_sql(nullptr) {}
 
-MsDbMgr::~MsDbMgr()
-{
-	if (m_sql)
-	{
+MsDbMgr::~MsDbMgr() {
+	if (m_sql) {
 		sqlite3_close(m_sql);
 	}
 }
 
-int MsDbMgr::Init()
-{
+int MsDbMgr::Init() {
 	int rc = sqlite3_open("conf/media_server.db", &m_sql);
-	if (rc)
-	{
+	if (rc) {
 		printf("Can't open database: %s\n", sqlite3_errmsg(m_sql));
 		return -1;
 	}
@@ -42,8 +35,7 @@ int MsDbMgr::Init()
 		)";
 
 	rc = sqlite3_exec(m_sql, sql.c_str(), NULL, 0, &zErrMsg);
-	if (rc != SQLITE_OK)
-	{
+	if (rc != SQLITE_OK) {
 		printf("database error: %s\n", zErrMsg);
 		sqlite3_free(zErrMsg);
 		return 1;
@@ -80,8 +72,7 @@ int MsDbMgr::Init()
 		)";
 
 	rc = sqlite3_exec(m_sql, sql.c_str(), NULL, 0, &zErrMsg);
-	if (rc != SQLITE_OK)
-	{
+	if (rc != SQLITE_OK) {
 		printf("database error: %s\n", zErrMsg);
 		sqlite3_free(zErrMsg);
 		return 1;
@@ -96,8 +87,7 @@ int MsDbMgr::Init()
 		) ";
 
 	rc = sqlite3_exec(m_sql, sql.c_str(), NULL, 0, &zErrMsg);
-	if (rc != SQLITE_OK)
-	{
+	if (rc != SQLITE_OK) {
 		printf("database error: %s\n", zErrMsg);
 		sqlite3_free(zErrMsg);
 		return 1;
@@ -106,33 +96,22 @@ int MsDbMgr::Init()
 	return 0;
 }
 
-sqlite3 *MsDbMgr::GetSql()
-{
+sqlite3 *MsDbMgr::GetSql() {
 	m_sqlMutex.lock();
 	return m_sql;
 }
 
-void MsDbMgr::RelSql()
-{
-	m_sqlMutex.unlock();
-}
+void MsDbMgr::RelSql() { m_sqlMutex.unlock(); }
 
-MsDbMgr *MsDbMgr::Instance()
-{
-	if (MsDbMgr::m_instance.get())
-	{
+MsDbMgr *MsDbMgr::Instance() {
+	if (MsDbMgr::m_instance.get()) {
 		return MsDbMgr::m_instance.get();
-	}
-	else
-	{
+	} else {
 		lock_guard<mutex> lk(MsDbMgr::m_mutex);
 
-		if (MsDbMgr::m_instance.get())
-		{
+		if (MsDbMgr::m_instance.get()) {
 			return MsDbMgr::m_instance.get();
-		}
-		else
-		{
+		} else {
 			MsDbMgr::m_instance = make_unique<MsDbMgr>();
 			return MsDbMgr::m_instance.get();
 		}

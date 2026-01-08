@@ -1,9 +1,8 @@
 #pragma once
-#include "MsReactor.h"
 #include "MsDevMgr.h"
+#include "MsReactor.h"
 
-class MsOnvifHandler : public MsEventHandler
-{
+class MsOnvifHandler : public MsEventHandler {
 public:
 	MsOnvifHandler(shared_ptr<MsReactor> r, shared_ptr<MsGbDevice> dev, int sid);
 	~MsOnvifHandler();
@@ -11,10 +10,10 @@ public:
 	void HandleRead(shared_ptr<MsEvent> evt);
 	void HandleClose(shared_ptr<MsEvent> evt);
 
-	static void OnvifPtzControl(string user, string passwd, string url, 
-		string profile, string presetID, int cmd, int ttout);
-	static void QueryPreset(string user, string passwd,
-		string url, string profile, int nseq);
+	static void OnvifPtzControl(string user, string passwd, string url, string profile,
+	                            string presetID, int cmd, int ttout);
+	static void QueryPreset(string user, string passwd, string url, string profile, int nseq);
+
 public:
 	enum {
 		STAGE_S1,
@@ -29,13 +28,13 @@ public:
 	void proc_s4(shared_ptr<MsEvent> evt);
 
 	void clear_evt(shared_ptr<MsEvent> evt);
-	static int parse_uri(string& url, string& ip, int& port, string& uri);
-	static void gen_digest(string& passwd, string& created, string& nonce, string& digest);
+	static int parse_uri(string &url, string &ip, int &port, string &uri);
+	static void gen_digest(string &passwd, string &created, string &nonce, string &digest);
 
 	shared_ptr<MsReactor> m_reactor;
 	shared_ptr<MsGbDevice> m_dev;
 	shared_ptr<MsEvent> m_evt;
-	char* m_buf;
+	char *m_buf;
 	int m_nrecv;
 	int m_stage;
 	int m_sid;

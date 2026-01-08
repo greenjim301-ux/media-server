@@ -7,11 +7,11 @@
 
 class MsHttpStream : public MsIHttpServer {
 public:
-    using MsIHttpServer::MsIHttpServer;
+	using MsIHttpServer::MsIHttpServer;
 
-    void Run();
-    void HandleHttpReq(shared_ptr<MsEvent> evt, MsHttpMsg &msg, char *body, int len);
+	void Run();
+	void HandleHttpReq(shared_ptr<MsEvent> evt, MsHttpMsg &msg, char *body, int len);
 
 private:
-    int m_seqID = 0;
+	int m_seqID = 0;
 };

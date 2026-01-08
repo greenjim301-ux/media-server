@@ -1,20 +1,19 @@
 #pragma once
-#include "MsSocket.h"
-#include "MsReactor.h"
-#include <memory>
-#include "MsSipMsg.h"
-#include "tinyxml2/tinyxml2.h"
-#include "MsLog.h"
-#include "nlohmann/json.hpp"
-#include <set>
 #include "MsDevMgr.h"
 #include "MsGbServerHandler.h"
+#include "MsLog.h"
+#include "MsReactor.h"
+#include "MsSipMsg.h"
+#include "MsSocket.h"
+#include "nlohmann/json.hpp"
+#include "tinyxml2/tinyxml2.h"
+#include <memory>
+#include <set>
 
 using json = nlohmann::json;
 using namespace tinyxml2;
 
-class MsGbServer : public MsIGbServer
-{
+class MsGbServer : public MsIGbServer {
 public:
 	MsGbServer(int type, int id);
 	~MsGbServer() = default;
@@ -23,17 +22,21 @@ public:
 	void HandleMsg(MsMsg &msg);
 
 	void HandleRegist(MsSipMsg &sipMsg, shared_ptr<MsSocket> s, MsInetAddr &addr);
-	void HandleMessage(MsSipMsg &sipMsg, shared_ptr<MsSocket> sock, MsInetAddr &addr, char *body, int len);
+	void HandleMessage(MsSipMsg &sipMsg, shared_ptr<MsSocket> sock, MsInetAddr &addr, char *body,
+	                   int len);
 	void HandleKeepalive(const char *deviceID, MsSipMsg &rspMsg);
 	void HandleCatalog(XMLElement *root, const char *deviceID);
 	void HandleRecord(XMLElement *root, const char *deviceID);
-	void HandleInvite(MsSipMsg &sipMsg, shared_ptr<MsSocket> sock, MsInetAddr &addr, char *body, int len);
+	void HandleInvite(MsSipMsg &sipMsg, shared_ptr<MsSocket> sock, MsInetAddr &addr, char *body,
+	                  int len);
 	void HandleResponse(MsSipMsg &sipMsg, shared_ptr<MsSocket> sock, char *body, int len);
-	void HandleInviteRsp(MsSipMsg &sipMsg, shared_ptr<MsSocket> sock, int status, char *body, int len);
+	void HandleInviteRsp(MsSipMsg &sipMsg, shared_ptr<MsSocket> sock, int status, char *body,
+	                     int len);
 	void HandleAck(MsSipMsg &sipMsg);
 	void HandleBye(MsSipMsg &sipMsg, shared_ptr<MsSocket> sock, MsInetAddr &addr);
 	void HandleCancel(MsSipMsg &sipMsg, shared_ptr<MsSocket> sock, MsInetAddr &addr);
-	void HandleNotify(MsSipMsg &sipMsg, shared_ptr<MsSocket> sock, MsInetAddr &addr, char *body, int len);
+	void HandleNotify(MsSipMsg &sipMsg, shared_ptr<MsSocket> sock, MsInetAddr &addr, char *body,
+	                  int len);
 	void HandleMediaStatus(XMLElement *root, MsSipMsg &msg);
 	void HandlePreset(XMLElement *root, const char *deviceID);
 	void GetRegistDomain(MsMsg &msg);
@@ -61,8 +64,7 @@ private:
 	int m_port;
 	int m_cseq;
 
-	class RegistDomain
-	{
+	class RegistDomain {
 	public:
 		RegistDomain() : m_contact("Contact") {}
 
@@ -72,14 +74,11 @@ private:
 		map<string, shared_ptr<MsGbDevice>> m_device;
 	};
 
-	void AddGbDevice(XMLElement *item, const char *domainID,
-					 shared_ptr<RegistDomain> dd);
-	void DoPtz(shared_ptr<RegistDomain> domain, string devID,
-			   string ptzCmd, int timeout);
+	void AddGbDevice(XMLElement *item, const char *domainID, shared_ptr<RegistDomain> dd);
+	void DoPtz(shared_ptr<RegistDomain> domain, string devID, string ptzCmd, int timeout);
 	void ClearDomain(shared_ptr<RegistDomain> domain);
 
-	class GbSessionCtx
-	{
+	class GbSessionCtx {
 	public:
 		int m_sum = 0;
 		int m_recevd = 0;
@@ -89,13 +88,9 @@ private:
 		shared_ptr<RegistDomain> m_domain;
 	};
 
-	class InviteCtx
-	{
+	class InviteCtx {
 	public:
-		~InviteCtx()
-		{
-			MS_LOG_INFO("invite call:%s ctx destory", m_rsp.m_callID.m_value.c_str());
-		}
+		~InviteCtx() { MS_LOG_INFO("invite call:%s ctx destory", m_rsp.m_callID.m_value.c_str()); }
 
 		shared_ptr<RegistDomain> m_domain;
 		MsSipMsg m_req;

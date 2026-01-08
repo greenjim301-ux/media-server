@@ -5,26 +5,19 @@ unique_ptr<MsApp> MsApp::m_app;
 mutex MsApp::m_mutex;
 condition_variable MsApp::m_condiVar;
 
-MsApp::MsApp()
-	: m_exit(false)
-{
+MsApp::MsApp() : m_exit(false) {}
 
-}
-
-void MsApp::Run()
-{
+void MsApp::Run() {
 	unique_lock<mutex> lk(MsApp::m_mutex);
 
-	while (!m_exit)
-	{
+	while (!m_exit) {
 		m_condiVar.wait(lk);
 	}
 
 	lk.unlock();
 }
 
-void MsApp::Exit()
-{
+void MsApp::Exit() {
 	unique_lock<mutex> lk(MsApp::m_mutex);
 	m_exit = true;
 	lk.unlock();
@@ -32,22 +25,15 @@ void MsApp::Exit()
 	m_condiVar.notify_one();
 }
 
-MsApp* MsApp::Instance()
-{
-	if (MsApp::m_app.get())
-	{
+MsApp *MsApp::Instance() {
+	if (MsApp::m_app.get()) {
 		return MsApp::m_app.get();
-	}
-	else
-	{
+	} else {
 		lock_guard<mutex> lk(MsApp::m_mutex);
 
-		if (MsApp::m_app.get())
-		{
+		if (MsApp::m_app.get()) {
 			return MsApp::m_app.get();
-		}
-		else
-		{
+		} else {
 			MsApp::m_app = make_unique<MsApp>();
 			return MsApp::m_app.get();
 		}

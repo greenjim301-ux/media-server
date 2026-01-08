@@ -5,8 +5,7 @@
 
 using namespace std;
 
-enum MS_MSG_ID
-{
+enum MS_MSG_ID {
 	MS_EXIT = 1,
 	MS_REG_TIME_OUT,
 	MS_INIT_CATALOG,
@@ -30,8 +29,7 @@ enum MS_MSG_ID
 	MS_STOP_INVITE_CALL,
 };
 
-enum MS_SERVICE_TYPE
-{
+enum MS_SERVICE_TYPE {
 	MS_HTTP_SERVER = 1,
 	MS_HTTP_CLIENT,
 	MS_GB_SERVER,
@@ -42,8 +40,7 @@ enum MS_SERVICE_TYPE
 	MS_RTSP_SERVER,
 };
 
-class MsMsg
-{
+class MsMsg {
 public:
 	MsMsg();
 

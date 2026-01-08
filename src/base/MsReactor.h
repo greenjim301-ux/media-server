@@ -1,12 +1,11 @@
 #pragma once
 #include "MsEvent.h"
-#include <map>
-#include <queue>
-#include <mutex>
 #include "MsMsg.h"
+#include <map>
+#include <mutex>
+#include <queue>
 
-class MsReactor : public enable_shared_from_this<MsReactor>
-{
+class MsReactor : public enable_shared_from_this<MsReactor> {
 public:
 	MsReactor(int type, int id);
 	virtual ~MsReactor();
@@ -18,20 +17,20 @@ public:
 	int DelEvent(shared_ptr<MsEvent> evt);
 	int ModEvent(shared_ptr<MsEvent> evt);
 
-	int AddTimer(MsMsg& msg, int inter, bool repeat = false);
+	int AddTimer(MsMsg &msg, int inter, bool repeat = false);
 	void DelTimer(int id);
 	void ResetTimer(int id);
 
 	virtual void Run();
 	virtual void Exit();
-	virtual void HandleMsg(MsMsg& msg);
+	virtual void HandleMsg(MsMsg &msg);
 
 	int Wait();
 
-	void EnqueMsg(MsMsg& msg);
+	void EnqueMsg(MsMsg &msg);
 	void ProcessMsgQue();
 
-	int PostMsg(MsMsg& msg);
+	int PostMsg(MsMsg &msg);
 	void PostExit();
 	inline bool IsExit() { return m_exit; }
 
@@ -46,11 +45,10 @@ private:
 	map<int, shared_ptr<MsEvent>> m_events;
 	int m_efd;
 	int m_eventfd;
-	
-	class MsNotifyHandler : public MsEventHandler
-	{
+
+	class MsNotifyHandler : public MsEventHandler {
 	public:
-		MsNotifyHandler(const shared_ptr<MsReactor>& reactor);
+		MsNotifyHandler(const shared_ptr<MsReactor> &reactor);
 		~MsNotifyHandler();
 
 		void HandleRead(shared_ptr<MsEvent> evt);
@@ -66,22 +64,21 @@ private:
 	mutex m_mutex;
 };
 
-class MsReactorMgr
-{
+class MsReactorMgr {
 public:
 	MsReactorMgr();
 
-	void Regist(const shared_ptr<MsReactor>& reactor);
-	void UnRegist(const shared_ptr<MsReactor>& reactor);
+	void Regist(const shared_ptr<MsReactor> &reactor);
+	void UnRegist(const shared_ptr<MsReactor> &reactor);
 
-	int PostMsg(MsMsg& msg);
+	int PostMsg(MsMsg &msg);
 	shared_ptr<MsReactor> GetReactor(int type, int id);
 
-	static MsReactorMgr* Instance();
+	static MsReactorMgr *Instance();
 
 private:
 	map<int, map<int, shared_ptr<MsReactor>>> m_reactors;
 
-	static unique_ptr<MsReactorMgr>  m_manager;
+	static unique_ptr<MsReactorMgr> m_manager;
 	static mutex m_mutex;
 };

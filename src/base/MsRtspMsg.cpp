@@ -1,31 +1,17 @@
 #include "MsRtspMsg.h"
+#include "MsLog.h"
 #include "MsOsConfig.h"
 #include "MsSocket.h"
-#include "MsLog.h"
 
 MsRtspMsg::MsRtspMsg()
-	: m_cseq("CSeq")
-	, m_contentBase("Content-Base")
-	, m_public("Public")
-	, m_transport("Transport")
-	, m_session("Session")
-	, m_range("Range")
-	, m_rtpInfo("RTP-Info")
-	, m_wwwAuth("WWW-Authenticate")
-	, m_auth("Authorization")
-	, m_accept("Accept")
-{
+    : m_cseq("CSeq"), m_contentBase("Content-Base"), m_public("Public"), m_transport("Transport"),
+      m_session("Session"), m_range("Range"), m_rtpInfo("RTP-Info"), m_wwwAuth("WWW-Authenticate"),
+      m_auth("Authorization"), m_accept("Accept") {}
 
-}
-
-void MsRtspMsg::Dump(string& rsp)
-{
-	if (m_status.size())
-	{
+void MsRtspMsg::Dump(string &rsp) {
+	if (m_status.size()) {
 		BuildFirstLine(rsp, m_version, m_status, m_reason);
-	}
-	else
-	{
+	} else {
 		BuildFirstLine(rsp, m_method, m_uri, m_version);
 	}
 
@@ -43,18 +29,15 @@ void MsRtspMsg::Dump(string& rsp)
 
 	rsp += "\r\n";
 
-	if (m_body && m_bodyLen)
-	{
+	if (m_body && m_bodyLen) {
 		rsp.append(m_body, m_bodyLen);
 	}
 }
 
-void MsRtspMsg::Parse(char*& p2)
-{
+void MsRtspMsg::Parse(char *&p2) {
 	ParseReqLine(p2, m_method, m_uri, m_version);
 
-	if (m_method == "RTSP/1.0")
-	{
+	if (m_method == "RTSP/1.0") {
 		m_status = m_uri;
 		m_reason = m_version;
 		m_version = m_method;
@@ -63,63 +46,42 @@ void MsRtspMsg::Parse(char*& p2)
 	string line;
 	string key, value;
 
-	while (GetHeaderLine(p2, line))
-	{
+	while (GetHeaderLine(p2, line)) {
 		size_t p1 = line.find_first_of(':');
 		size_t p2 = line.find_first_not_of(' ', p1 + 1);
 
-		if (p2 == string::npos)
-		{
+		if (p2 == string::npos) {
 			continue;
 		}
 
 		key = line.substr(0, p1);
 		value = line.substr(p2);
 
-		if (!strcasecmp(key.c_str(), "CSeq"))
-		{
+		if (!strcasecmp(key.c_str(), "CSeq")) {
 			m_cseq.SetValue(value);
-		}
-		else if (!strcasecmp(key.c_str(), "Content-Length"))
-		{
+		} else if (!strcasecmp(key.c_str(), "Content-Length")) {
 			m_contentLength.SetValue(value);
-		}
-		else if (!strcasecmp(key.c_str(), "Content-Type"))
-		{
+		} else if (!strcasecmp(key.c_str(), "Content-Type")) {
 			m_contentType.SetValue(value);
-		}
-		else if (!strcasecmp(key.c_str(), "Content-Base"))
-		{
+		} else if (!strcasecmp(key.c_str(), "Content-Base")) {
 			m_contentBase.SetValue(value);
-		}
-		else if (!strcasecmp(key.c_str(), "Transport"))
-		{
+		} else if (!strcasecmp(key.c_str(), "Transport")) {
 			m_transport.SetValue(value);
-		}
-		else if (!strcasecmp(key.c_str(), "Session"))
-		{
+		} else if (!strcasecmp(key.c_str(), "Session")) {
 			m_session.SetValue(value);
-		}
-		else if (!strcasecmp(key.c_str(), "Range"))
-		{
+		} else if (!strcasecmp(key.c_str(), "Range")) {
 			m_range.SetValue(value);
-		}
-		else if (!strcasecmp(key.c_str(), "Public"))
-		{
+		} else if (!strcasecmp(key.c_str(), "Public")) {
 			m_public.SetValue(value);
-		}
-		else if (!strcasecmp(key.c_str(), "WWW-Authenticate"))
-		{
-			if (!m_wwwAuth.m_exist)
-			{
+		} else if (!strcasecmp(key.c_str(), "WWW-Authenticate")) {
+			if (!m_wwwAuth.m_exist) {
 				m_wwwAuth.SetValue(value);
 			}
 		}
 	}
 }
 
-int SendRtspMsg(MsRtspMsg& msg, MsSocket* s)
-{
+int SendRtspMsg(MsRtspMsg &msg, MsSocket *s) {
 	string data;
 
 	msg.Dump(data);

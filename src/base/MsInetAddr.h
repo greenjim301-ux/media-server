@@ -4,18 +4,17 @@
 
 using namespace std;
 
-class MsInetAddr
-{
+class MsInetAddr {
 public:
 	MsInetAddr();
-	MsInetAddr(int af, const string& ip, int port);
+	MsInetAddr(int af, const string &ip, int port);
 
 	int GetAF() const;
-	const char* GetIP() const;
+	const char *GetIP() const;
 	int GetPort() const;
 
 	void SetAF(int af);
-	void SetIP(const char* ip);
+	void SetIP(const char *ip);
 	void SetPort(int port);
 
 private:
@@ -23,4 +22,3 @@ private:
 	string m_ip;
 	int m_port;
 };
-

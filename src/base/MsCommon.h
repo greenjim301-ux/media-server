@@ -1,8 +1,8 @@
 #pragma once
-#include <string>
 #include <map>
 #include <memory>
 #include <stdint.h>
+#include <string>
 #include <vector>
 
 using namespace std;
@@ -10,10 +10,9 @@ using namespace std;
 #define DEF_BUF_SIZE 64 * 1024
 
 #define AV_RB16(x) ((((const uint8_t *)(x))[0] << 8) | ((const uint8_t *)(x))[1])
-#define AV_RB32(x) ((((const uint8_t *)(x))[0] << 24) | \
-					(((const uint8_t *)(x))[1] << 16) | \
-					(((const uint8_t *)(x))[2] << 8) |  \
-					((const uint8_t *)(x))[3])
+#define AV_RB32(x)                                                                                 \
+	((((const uint8_t *)(x))[0] << 24) | (((const uint8_t *)(x))[1] << 16) |                       \
+	 (((const uint8_t *)(x))[2] << 8) | ((const uint8_t *)(x))[3])
 #define RTP_FLAG_MARKER 0x2 ///< RTP marker bit was set for this packet
 
 bool IsHeaderComplete(char *p);
@@ -34,15 +33,13 @@ int64_t GetCurMs();
 void GbkToUtf8(string &src_str, const char *src);
 time_t StrTimeToUnixTime(string &timeStamp);
 
-class MsComHeader
-{
+class MsComHeader {
 public:
 	MsComHeader(const char *key);
 
 	void Dump(string &rsp);
 
-	inline void SetValue(const string &value)
-	{
+	inline void SetValue(const string &value) {
 		m_value = value;
 		m_exist = true;
 	}
@@ -52,8 +49,7 @@ public:
 	bool m_exist;
 };
 
-class MsComIntVal : public MsComHeader
-{
+class MsComIntVal : public MsComHeader {
 public:
 	MsComIntVal(const char *key) : MsComHeader(key) {}
 
@@ -61,16 +57,14 @@ public:
 	void SetIntVal(int64_t len);
 };
 
-class MsComAuth : public MsComHeader
-{
+class MsComAuth : public MsComHeader {
 public:
 	MsComAuth(const char *key) : MsComHeader(key) {}
 
 	string GetAttr(const char *key);
 };
 
-class MsComMsg
-{
+class MsComMsg {
 public:
 	MsComMsg();
 
@@ -90,9 +84,7 @@ public:
 	int m_bodyLen;
 };
 
-
-struct SGbContext
-{
+struct SGbContext {
 	string gbID;
 	string gbCallID;
 	string rtpIP;
@@ -103,27 +95,23 @@ struct SGbContext
 	string endTime;
 };
 
-
-struct SData
-{
+struct SData {
 	uint8_t *m_buf;
 	int m_len;
 };
 
-struct SMediaNode
-{
-    int node_id;
-    int idle;
-    int m_lastUsed;
-    int httpStreamPort;
-    int rtspPort;
-    int httpPort;
-    string httpMediaIP;
-    string nodeIp;
+struct SMediaNode {
+	int node_id;
+	int idle;
+	int m_lastUsed;
+	int httpStreamPort;
+	int rtspPort;
+	int httpPort;
+	string httpMediaIP;
+	string nodeIp;
 };
 
-class SPtzCmd
-{
+class SPtzCmd {
 public:
 	string m_devid;
 	string m_presetID;
@@ -131,12 +119,7 @@ public:
 	int m_timeout;
 };
 
-enum TRASNSPORT
-{
-	EN_UDP = 0,
-	EN_TCP_ACTIVE,
-	EN_TCP_PASSIVE
-};
+enum TRASNSPORT { EN_UDP = 0, EN_TCP_ACTIVE, EN_TCP_PASSIVE };
 
 std::string EncodeBase64(const unsigned char *data, size_t in_len);
 void DecodeBase64(const std::string &input, std::vector<unsigned char> &out);

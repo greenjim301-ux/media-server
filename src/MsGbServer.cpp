@@ -1,17 +1,13 @@
 #include "MsGbServer.h"
-#include "MsGbServerHandler.h"
 #include "MsConfig.h"
+#include "MsDevMgr.h"
+#include "MsGbServerHandler.h"
 #include "MsPortAllocator.h"
 #include <thread>
-#include "MsDevMgr.h"
 
-MsGbServer::MsGbServer(int type, int id)
-	: MsIGbServer(type, id), m_cseq(0)
-{
-}
+MsGbServer::MsGbServer(int type, int id) : MsIGbServer(type, id), m_cseq(0) {}
 
-void MsGbServer::Run()
-{
+void MsGbServer::Run() {
 	MsIGbServer::Run();
 
 	MsConfig *config = MsConfig::Instance();
@@ -23,37 +19,33 @@ void MsGbServer::Run()
 	// udp bind
 	auto sock = make_shared<MsSocket>(AF_INET, SOCK_DGRAM, 0);
 	MsInetAddr bindAddr(AF_INET, m_ip, m_port);
-	if (0 != sock->Bind(bindAddr))
-	{
-		MS_LOG_ERROR("gb server bind:%s:%d err:%d", m_ip.c_str(), m_port,
-					 MS_LAST_ERROR);
+	if (0 != sock->Bind(bindAddr)) {
+		MS_LOG_ERROR("gb server bind:%s:%d err:%d", m_ip.c_str(), m_port, MS_LAST_ERROR);
 		this->Exit();
 		return;
 	}
 	MS_LOG_INFO("gb server bind:%s:%d", m_ip.c_str(), m_port);
 
-	shared_ptr<MsEventHandler> h = make_shared<MsGbServerHandler>(
-		dynamic_pointer_cast<MsIGbServer>(shared_from_this()));
+	shared_ptr<MsEventHandler> h =
+	    make_shared<MsGbServerHandler>(dynamic_pointer_cast<MsIGbServer>(shared_from_this()));
 	shared_ptr<MsEvent> msEvent = make_shared<MsEvent>(sock, MS_FD_READ, h);
 	this->AddEvent(msEvent);
 
 	// add tcp listen socket
 	shared_ptr<MsSocket> tcpSock = make_shared<MsSocket>(AF_INET, SOCK_STREAM, 0);
 	MsInetAddr tcpBindAddr(AF_INET, "0.0.0.0", m_port);
-	if (0 != tcpSock->Bind(tcpBindAddr))
-	{
+	if (0 != tcpSock->Bind(tcpBindAddr)) {
 		MS_LOG_ERROR("gb server tcp bind:%d err:%d", m_port, MS_LAST_ERROR);
 		this->Exit();
 		return;
 	}
-	if (0 != tcpSock->Listen())
-	{
+	if (0 != tcpSock->Listen()) {
 		MS_LOG_ERROR("gb server tcp listen:%d err:%d", m_port, MS_LAST_ERROR);
 		this->Exit();
 		return;
 	}
-	shared_ptr<MsEventHandler> tcpH = make_shared<MsGbAcceptHandler>(
-		dynamic_pointer_cast<MsIGbServer>(shared_from_this()));
+	shared_ptr<MsEventHandler> tcpH =
+	    make_shared<MsGbAcceptHandler>(dynamic_pointer_cast<MsIGbServer>(shared_from_this()));
 	shared_ptr<MsEvent> tcpEvent = make_shared<MsEvent>(tcpSock, MS_FD_ACCEPT, tcpH);
 	this->AddEvent(tcpEvent);
 
@@ -61,10 +53,8 @@ void MsGbServer::Run()
 	worker.detach();
 }
 
-void MsGbServer::HandleMsg(MsMsg &msg)
-{
-	switch (msg.m_msgID)
-	{
+void MsGbServer::HandleMsg(MsMsg &msg) {
+	switch (msg.m_msgID) {
 	case MS_REG_TIME_OUT:
 		this->OnRegTimeout(msg.m_strVal);
 		break;
@@ -105,63 +95,47 @@ void MsGbServer::HandleMsg(MsMsg &msg)
 		this->QueryPresetTimeout(msg.m_intVal);
 		break;
 
-	case MS_GB_SERVER_HANDLER_CLOSE:
-	{
+	case MS_GB_SERVER_HANDLER_CLOSE: {
 		int fd = msg.m_intVal;
-		for (auto it = m_registDomain.begin(); it != m_registDomain.end();)
-		{
+		for (auto it = m_registDomain.begin(); it != m_registDomain.end();) {
 			shared_ptr<RegistDomain> domain = it->second;
-			if (domain->m_sock->GetFd() == fd)
-			{
-				MS_LOG_INFO("gb server handler close, clear domain:%s",
-							it->first.c_str());
+			if (domain->m_sock->GetFd() == fd) {
+				MS_LOG_INFO("gb server handler close, clear domain:%s", it->first.c_str());
 				this->ClearDomain(domain);
 				it = m_registDomain.erase(it);
-			}
-			else
-			{
+			} else {
 				++it;
 			}
 		}
-	}
-	break;
+	} break;
 
-	case MS_STOP_INVITE_CALL:
-	{
+	case MS_STOP_INVITE_CALL: {
 		string callID = msg.m_strVal;
 		shared_ptr<InviteCtx> ctx;
-		if (callID.size())
-		{
+		if (callID.size()) {
 			auto it = m_inviteCtx.find(callID);
-			if (it != m_inviteCtx.end())
-			{
+			if (it != m_inviteCtx.end()) {
 				MS_LOG_INFO("stop invite call:%s", callID.c_str());
 				ctx = it->second;
 			}
-		}
-		else
-		{
+		} else {
 			int srcType = msg.m_srcType;
 			int srcID = msg.m_srcID;
-			for (auto it = m_inviteCtx.begin(); it != m_inviteCtx.end(); ++it)
-			{
+			for (auto it = m_inviteCtx.begin(); it != m_inviteCtx.end(); ++it) {
 				shared_ptr<InviteCtx> &x = it->second;
-				if (x->m_srcType == srcType && x->m_srcID == srcID)
-				{
-					MS_LOG_INFO("stop invite call:%s by src %d:%d",
-								it->first.c_str(), srcType, srcID);
+				if (x->m_srcType == srcType && x->m_srcID == srcID) {
+					MS_LOG_INFO("stop invite call:%s by src %d:%d", it->first.c_str(), srcType,
+					            srcID);
 					ctx = x;
 					break;
 				}
 			}
 		}
-		if (ctx)
-		{
+		if (ctx) {
 			this->ByeMsg(ctx->m_rsp, ctx->m_domain->m_sock);
 			m_inviteCtx.erase(ctx->m_req.m_callID.m_value);
 		}
-	}
-	break;
+	} break;
 
 	case MS_GET_REGIST_DOMAIN:
 		this->GetRegistDomain(msg);
@@ -177,17 +151,14 @@ void MsGbServer::HandleMsg(MsMsg &msg)
 	}
 }
 
-void MsGbServer::HandleRegist(MsSipMsg &sipMsg, shared_ptr<MsSocket> sock, MsInetAddr &addr)
-{
+void MsGbServer::HandleRegist(MsSipMsg &sipMsg, shared_ptr<MsSocket> sock, MsInetAddr &addr) {
 	MsSipMsg rspMsg;
 	rspMsg.CloneBasic(sipMsg);
 	rspMsg.m_to.AppendTag(GenRandStr(16));
 	string domainID = sipMsg.m_contact.GetID();
 
-	if (sipMsg.m_authorization.m_exist)
-	{
-		if (AuthValid(sipMsg.m_authorization, sipMsg.m_method, m_pass))
-		{
+	if (sipMsg.m_authorization.m_exist) {
+		if (AuthValid(sipMsg.m_authorization, sipMsg.m_method, m_pass)) {
 			rspMsg.m_status = "200";
 			rspMsg.m_reason = "OK";
 			rspMsg.m_contact = sipMsg.m_contact;
@@ -196,24 +167,19 @@ void MsGbServer::HandleRegist(MsSipMsg &sipMsg, shared_ptr<MsSocket> sock, MsIne
 			int exp = sipMsg.m_expires.GetIntVal();
 
 			if (!sock->IsTcp() &&
-				(!sipMsg.m_contact.GetPort() || MsConfig::Instance()->GetConfigInt("useRAddr")))
-			{
-				BuildContact(sipMsg.m_contact, sipMsg.m_contact.GetID(),
-							 addr.GetIP(), addr.GetPort());
+			    (!sipMsg.m_contact.GetPort() || MsConfig::Instance()->GetConfigInt("useRAddr"))) {
+				BuildContact(sipMsg.m_contact, sipMsg.m_contact.GetID(), addr.GetIP(),
+				             addr.GetPort());
 			}
 
 			MS_LOG_INFO("reg:%s exp:%d ip:%s:%d", domainID.c_str(), exp,
-						sipMsg.m_contact.GetIP().c_str(), sipMsg.m_contact.GetPort());
+			            sipMsg.m_contact.GetIP().c_str(), sipMsg.m_contact.GetPort());
 
 			auto it = m_registDomain.find(domainID);
-			if (it == m_registDomain.end())
-			{
-				if (exp <= 0)
-				{
+			if (it == m_registDomain.end()) {
+				if (exp <= 0) {
 					MS_LOG_WARN("reg:%s already removed", domainID.c_str());
-				}
-				else
-				{
+				} else {
 					shared_ptr<RegistDomain> domain = make_shared<RegistDomain>();
 					MsMsg msg;
 					msg.m_msgID = MS_REG_TIME_OUT;
@@ -224,24 +190,23 @@ void MsGbServer::HandleRegist(MsSipMsg &sipMsg, shared_ptr<MsSocket> sock, MsIne
 					int fromPort = sipMsg.m_from.GetPort();
 					string conIP = sipMsg.m_contact.GetIP();
 
-					if (fromIP.size() && fromPort && fromIP != conIP)
-					{
-						MS_LOG_WARN("contact ip diff domain ip:%s contact ip:%s",
-									fromIP.c_str(), conIP.c_str());
-						// BuildContact(sipMsg.m_contact, sipMsg.m_contact.GetID(), fromIP, fromPort);
+					if (fromIP.size() && fromPort && fromIP != conIP) {
+						MS_LOG_WARN("contact ip diff domain ip:%s contact ip:%s", fromIP.c_str(),
+						            conIP.c_str());
+						// BuildContact(sipMsg.m_contact, sipMsg.m_contact.GetID(), fromIP,
+						// fromPort);
 					}
 
 					string mapIP = MsDevMgr::Instance()->GetMapIP(sipMsg.m_contact.GetIP());
-					if (mapIP.size())
-					{
-						MS_LOG_INFO("map ip %s->%s", sipMsg.m_contact.GetIP().c_str(), mapIP.c_str());
-						if (fromPort != 0)
-						{
-							BuildContact(sipMsg.m_contact, sipMsg.m_contact.GetID(), mapIP, fromPort);
-						}
-						else
-						{
-							BuildContact(sipMsg.m_contact, sipMsg.m_contact.GetID(), mapIP, sipMsg.m_contact.GetPort());
+					if (mapIP.size()) {
+						MS_LOG_INFO("map ip %s->%s", sipMsg.m_contact.GetIP().c_str(),
+						            mapIP.c_str());
+						if (fromPort != 0) {
+							BuildContact(sipMsg.m_contact, sipMsg.m_contact.GetID(), mapIP,
+							             fromPort);
+						} else {
+							BuildContact(sipMsg.m_contact, sipMsg.m_contact.GetID(), mapIP,
+							             sipMsg.m_contact.GetPort());
 						}
 					}
 
@@ -256,20 +221,15 @@ void MsGbServer::HandleRegist(MsSipMsg &sipMsg, shared_ptr<MsSocket> sock, MsIne
 					catMsg.m_strVal = domainID;
 					this->AddTimer(catMsg, 1);
 				}
-			}
-			else
-			{
+			} else {
 				shared_ptr<RegistDomain> &domain = it->second;
 				this->DelTimer(domain->m_timer);
 
-				if (exp <= 0)
-				{
+				if (exp <= 0) {
 					MS_LOG_DEBUG("domain:%s unregist", domainID.c_str());
 					this->ClearDomain(domain);
 					m_registDomain.erase(it);
-				}
-				else
-				{
+				} else {
 					MsMsg msg;
 					msg.m_msgID = MS_REG_TIME_OUT;
 					msg.m_strVal = domainID;
@@ -279,24 +239,23 @@ void MsGbServer::HandleRegist(MsSipMsg &sipMsg, shared_ptr<MsSocket> sock, MsIne
 					int fromPort = sipMsg.m_from.GetPort();
 					string conIP = sipMsg.m_contact.GetIP();
 
-					if (fromIP.size() && fromPort && fromIP != conIP)
-					{
-						MS_LOG_WARN("contact ip diff domain ip:%s contact ip:%s",
-									fromIP.c_str(), conIP.c_str());
-						// BuildContact(sipMsg.m_contact, sipMsg.m_contact.GetID(), fromIP, fromPort);
+					if (fromIP.size() && fromPort && fromIP != conIP) {
+						MS_LOG_WARN("contact ip diff domain ip:%s contact ip:%s", fromIP.c_str(),
+						            conIP.c_str());
+						// BuildContact(sipMsg.m_contact, sipMsg.m_contact.GetID(), fromIP,
+						// fromPort);
 					}
 
 					string mapIP = MsDevMgr::Instance()->GetMapIP(sipMsg.m_contact.GetIP());
-					if (mapIP.size())
-					{
-						MS_LOG_INFO("map ip %s->%s", sipMsg.m_contact.GetIP().c_str(), mapIP.c_str());
-						if (fromPort != 0)
-						{
-							BuildContact(sipMsg.m_contact, sipMsg.m_contact.GetID(), mapIP, fromPort);
-						}
-						else
-						{
-							BuildContact(sipMsg.m_contact, sipMsg.m_contact.GetID(), mapIP, sipMsg.m_contact.GetPort());
+					if (mapIP.size()) {
+						MS_LOG_INFO("map ip %s->%s", sipMsg.m_contact.GetIP().c_str(),
+						            mapIP.c_str());
+						if (fromPort != 0) {
+							BuildContact(sipMsg.m_contact, sipMsg.m_contact.GetID(), mapIP,
+							             fromPort);
+						} else {
+							BuildContact(sipMsg.m_contact, sipMsg.m_contact.GetID(), mapIP,
+							             sipMsg.m_contact.GetPort());
 						}
 					}
 
@@ -309,16 +268,12 @@ void MsGbServer::HandleRegist(MsSipMsg &sipMsg, shared_ptr<MsSocket> sock, MsIne
 					this->AddTimer(catMsg, 1);
 				}
 			}
-		}
-		else
-		{
+		} else {
 			MS_LOG_WARN("reg:%s auth failed", domainID.c_str());
 			rspMsg.m_status = "403";
 			rspMsg.m_reason = "Forbidden";
 		}
-	}
-	else
-	{
+	} else {
 		MS_LOG_INFO("reg:%s no auth", domainID.c_str());
 
 		rspMsg.m_status = "401";
@@ -337,30 +292,25 @@ void MsGbServer::HandleRegist(MsSipMsg &sipMsg, shared_ptr<MsSocket> sock, MsIne
 }
 
 void MsGbServer::HandleMessage(MsSipMsg &sipMsg, shared_ptr<MsSocket> sock, MsInetAddr &addr,
-							   char *body, int len)
-{
+                               char *body, int len) {
 	MsSipMsg rspMsg;
 	rspMsg.CloneBasic(sipMsg);
 	rspMsg.m_status = "200";
 	rspMsg.m_reason = "OK";
 
-	if (!rspMsg.m_to.HasTag())
-	{
+	if (!rspMsg.m_to.HasTag()) {
 		rspMsg.m_to.AppendTag(GenRandStr(16));
 	}
 
-	if (!len)
-	{
+	if (!len) {
 		SendSipMsg(rspMsg, sock, addr);
 		return;
 	}
 
-	if (!strcasecmp(sipMsg.m_contentType.m_value.c_str(), "Application/MANSCDP+xml"))
-	{
+	if (!strcasecmp(sipMsg.m_contentType.m_value.c_str(), "Application/MANSCDP+xml")) {
 		tinyxml2::XMLDocument doc;
 		int ret = doc.Parse(body, len);
-		if (ret)
-		{
+		if (ret) {
 			MS_LOG_WARN("parse xml err:%d", ret);
 			SendSipMsg(rspMsg, sock, addr);
 			return;
@@ -371,31 +321,20 @@ void MsGbServer::HandleMessage(MsSipMsg &sipMsg, shared_ptr<MsSocket> sock, MsIn
 		XMLElement *domainID = root->FirstChildElement("DeviceID");
 		const char *strCmd = cmd->GetText();
 
-		if (!strcmp("Keepalive", strCmd))
-		{
+		if (!strcmp("Keepalive", strCmd)) {
 			this->HandleKeepalive(domainID->GetText(), rspMsg);
-		}
-		else if (!strcmp("Catalog", strCmd))
-		{
+		} else if (!strcmp("Catalog", strCmd)) {
 			this->HandleCatalog(root, domainID->GetText());
-		}
-		else if (!strcmp("RecordInfo", strCmd))
-		{
+		} else if (!strcmp("RecordInfo", strCmd)) {
 			this->HandleRecord(root, domainID->GetText());
-		}
-		else if (!strcmp("MediaStatus", strCmd))
-		{
+		} else if (!strcmp("MediaStatus", strCmd)) {
 			// first send 200 OK, then send bye
 			SendSipMsg(rspMsg, sock, addr);
 			this->HandleMediaStatus(root, sipMsg);
 			return;
-		}
-		else if (!strcmp("PresetQuery", strCmd))
-		{
+		} else if (!strcmp("PresetQuery", strCmd)) {
 			this->HandlePreset(root, domainID->GetText());
-		}
-		else
-		{
+		} else {
 			MS_LOG_WARN("unknown cmd:%s %s %s", root->Name(), cmd->GetText(), domainID->GetText());
 		}
 	}
@@ -403,25 +342,18 @@ void MsGbServer::HandleMessage(MsSipMsg &sipMsg, shared_ptr<MsSocket> sock, MsIn
 	SendSipMsg(rspMsg, sock, addr);
 }
 
-void MsGbServer::HandleKeepalive(const char *domainID, MsSipMsg &rspMsg)
-{
-	if (domainID)
-	{
-		if (!m_registDomain.count(domainID))
-		{
+void MsGbServer::HandleKeepalive(const char *domainID, MsSipMsg &rspMsg) {
+	if (domainID) {
+		if (!m_registDomain.count(domainID)) {
 			rspMsg.m_status = "403";
 			rspMsg.m_reason = "Forbidden";
-		}
-		else
-		{
+		} else {
 			MS_LOG_INFO("keepalive:%s", domainID);
 		}
 	}
 }
 
-void MsGbServer::AddGbDevice(XMLElement *item, const char *domainID,
-							 shared_ptr<RegistDomain> dd)
-{
+void MsGbServer::AddGbDevice(XMLElement *item, const char *domainID, shared_ptr<RegistDomain> dd) {
 	shared_ptr<MsGbDevice> device = make_shared<MsGbDevice>(GB_DEV);
 
 	device->m_deviceID = item->FirstChildElement("DeviceID")->GetText();
@@ -431,8 +363,7 @@ void MsGbServer::AddGbDevice(XMLElement *item, const char *domainID,
 		if (item->FirstChildElement("Name")->GetText())
 			GbkToUtf8(device->m_name, item->FirstChildElement("Name")->GetText());
 
-	if (device->m_name.size() == 0)
-	{
+	if (device->m_name.size() == 0) {
 		device->m_name = device->m_deviceID;
 	}
 
@@ -440,23 +371,19 @@ void MsGbServer::AddGbDevice(XMLElement *item, const char *domainID,
 		if (item->FirstChildElement("Status")->GetText())
 			device->m_status = item->FirstChildElement("Status")->GetText();
 
-	if (item->FirstChildElement("Manufacturer"))
-	{
+	if (item->FirstChildElement("Manufacturer")) {
 		GbkToUtf8(device->m_manufacturer, item->FirstChildElement("Manufacturer")->GetText());
 	}
 
-	if (item->FirstChildElement("Model"))
-	{
+	if (item->FirstChildElement("Model")) {
 		GbkToUtf8(device->m_model, item->FirstChildElement("Model")->GetText());
 	}
 
-	if (item->FirstChildElement("Owner"))
-	{
+	if (item->FirstChildElement("Owner")) {
 		GbkToUtf8(device->m_owner, item->FirstChildElement("Owner")->GetText());
 	}
 
-	if (item->FirstChildElement("Address"))
-	{
+	if (item->FirstChildElement("Address")) {
 		GbkToUtf8(device->m_address, item->FirstChildElement("Address")->GetText());
 	}
 
@@ -479,74 +406,46 @@ void MsGbServer::AddGbDevice(XMLElement *item, const char *domainID,
 	if (item->FirstChildElement("Info"))
 		if (item->FirstChildElement("Info")->FirstChildElement("PTZType"))
 			if (item->FirstChildElement("Info")->FirstChildElement("PTZType")->GetText())
-				device->m_ptzType = atoi(item->FirstChildElement("Info")->FirstChildElement("PTZType")->GetText());
+				device->m_ptzType =
+				    atoi(item->FirstChildElement("Info")->FirstChildElement("PTZType")->GetText());
 
 	int ss = device->m_deviceID.size();
 
-	if (ss < 9)
-	{
+	if (ss < 9) {
 		device->m_type = CIVIL_TYPE;
-	}
-	else if (ss != 20)
-	{
+	} else if (ss != 20) {
 		device->m_type = UNKNOWN_TYPE;
-	}
-	else
-	{
+	} else {
 		int tt = stoi(device->m_deviceID.substr(10, 3));
 
-		if (tt > 130 && tt < 133)
-		{
+		if (tt > 130 && tt < 133) {
 			device->m_type = CAMERA_TYPE;
-		}
-		else if (tt == 601 || tt == 121)
-		{
+		} else if (tt == 601 || tt == 121) {
 			device->m_type = CAMERA_TYPE;
-		}
-		else if (tt == 111)
-		{
+		} else if (tt == 111) {
 			device->m_type = NVR_TYPE;
-		}
-		else if (tt == 215)
-		{
+		} else if (tt == 215) {
 			device->m_type = BIZGROUP_TYPE;
-		}
-		else if (tt == 216)
-		{
+		} else if (tt == 216) {
 			device->m_type = VIRTUALGROUP_TYPE;
-		}
-		else if (tt == 200)
-		{
+		} else if (tt == 200) {
 			device->m_type = DOMAIN_TYPE;
-		}
-		else
-		{
+		} else {
 			device->m_type = UNKNOWN_TYPE;
 		}
 	}
 
-	if (item->FirstChildElement("ParentID"))
-	{
+	if (item->FirstChildElement("ParentID")) {
 		device->m_parentID = item->FirstChildElement("ParentID")->GetText();
-	}
-	else
-	{
-		if (ss == 4 || ss == 6 || ss == 8)
-		{
+	} else {
+		if (ss == 4 || ss == 6 || ss == 8) {
 			device->m_parentID = device->m_deviceID.substr(0, ss - 2);
-		}
-		else
-		{
-			if (item->FirstChildElement("BusinessGroupID"))
-			{
+		} else {
+			if (item->FirstChildElement("BusinessGroupID")) {
 				device->m_parentID = item->FirstChildElement("BusinessGroupID")->GetText();
-			}
-			else if (device->m_deviceID != domainID)
-			{
+			} else if (device->m_deviceID != domainID) {
 				device->m_parentID = domainID;
-			}
-			else
-			{
+			} else {
 				device->m_parentID = m_gbServerId;
 			}
 		}
@@ -558,22 +457,19 @@ void MsGbServer::AddGbDevice(XMLElement *item, const char *domainID,
 	MS_LOG_DEBUG("add device:%s", device->m_deviceID.c_str());
 }
 
-void MsGbServer::HandleCatalog(XMLElement *root, const char *domainID)
-{
+void MsGbServer::HandleCatalog(XMLElement *root, const char *domainID) {
 	XMLElement *sn = root->FirstChildElement("SN");
 	int nSn = atoi(sn->GetText());
 
 	auto it = m_gbSessionCtx.find(nSn);
-	if (it == m_gbSessionCtx.end())
-	{
+	if (it == m_gbSessionCtx.end()) {
 		MS_LOG_WARN("catalog sn:%d not exist", nSn);
 		return;
 	}
 
 	shared_ptr<GbSessionCtx> &ctx = it->second;
 	XMLElement *sumNum = root->FirstChildElement("SumNum");
-	if (sumNum == nullptr)
-	{
+	if (sumNum == nullptr) {
 		MS_LOG_ERROR("catalog sn:%d no sum num", nSn);
 		return;
 	}
@@ -583,13 +479,11 @@ void MsGbServer::HandleCatalog(XMLElement *root, const char *domainID)
 	XMLElement *devList = nullptr;
 	XMLElement *item = nullptr;
 	devList = root->FirstChildElement("DeviceList");
-	if (devList)
-	{
+	if (devList) {
 		item = devList->FirstChildElement("Item");
 	}
 
-	while (item)
-	{
+	while (item) {
 		++ctx->m_recevd;
 		string devID = item->FirstChildElement("DeviceID")->GetText();
 
@@ -598,24 +492,19 @@ void MsGbServer::HandleCatalog(XMLElement *root, const char *domainID)
 		item = item->NextSiblingElement();
 	}
 
-	if (ctx->m_recevd == ctx->m_sum)
-	{
+	if (ctx->m_recevd == ctx->m_sum) {
 		MS_LOG_INFO("catalog sn:%d finish total:%d", nSn, ctx->m_sum);
-	}
-	else
-	{
+	} else {
 		MS_LOG_INFO("catalog sn:%d recv %d/%d", nSn, ctx->m_recevd, ctx->m_sum);
 		this->ResetTimer(ctx->m_timer);
 	}
 }
 
-void MsGbServer::HandleRecord(XMLElement *root, const char *deviceID)
-{
+void MsGbServer::HandleRecord(XMLElement *root, const char *deviceID) {
 	XMLElement *sn = root->FirstChildElement("SN");
 	int nSn = atoi(sn->GetText());
 	auto it = m_gbSessionCtx.find(nSn);
-	if (it == m_gbSessionCtx.end())
-	{
+	if (it == m_gbSessionCtx.end()) {
 		MS_LOG_WARN("record sn:%d not exist", nSn);
 		return;
 	}
@@ -628,13 +517,11 @@ void MsGbServer::HandleRecord(XMLElement *root, const char *deviceID)
 	XMLElement *devList = nullptr;
 	XMLElement *item = nullptr;
 	devList = root->FirstChildElement("RecordList");
-	if (devList)
-	{
+	if (devList) {
 		item = devList->FirstChildElement("Item");
 	}
 
-	while (item)
-	{
+	while (item) {
 		++ctx->m_recevd;
 		json j;
 		string name;
@@ -658,15 +545,13 @@ void MsGbServer::HandleRecord(XMLElement *root, const char *deviceID)
 		item = item->NextSiblingElement();
 	}
 
-	if (ctx->m_recevd == ctx->m_sum)
-	{
+	if (ctx->m_recevd == ctx->m_sum) {
 		MS_LOG_INFO("record sn:%d finish total:%d", nSn, ctx->m_sum);
 
 		ctx->m_record["code"] = 0;
 		ctx->m_record["msg"] = "success";
 
-		if (!ctx->m_recevd)
-		{
+		if (!ctx->m_recevd) {
 			ctx->m_record["result"] = json::array();
 		}
 
@@ -684,59 +569,47 @@ void MsGbServer::HandleRecord(XMLElement *root, const char *deviceID)
 
 		this->DelTimer(ctx->m_timer);
 		m_gbSessionCtx.erase(nSn);
-	}
-	else
-	{
+	} else {
 		MS_LOG_INFO("record sn:%d recv %d/%d", nSn, ctx->m_recevd, ctx->m_sum);
 		this->ResetTimer(ctx->m_timer);
 	}
 }
 
-void MsGbServer::HandleInvite(MsSipMsg &sipMsg, shared_ptr<MsSocket> sock,
-							  MsInetAddr &addr, char *body, int len)
-{
+void MsGbServer::HandleInvite(MsSipMsg &sipMsg, shared_ptr<MsSocket> sock, MsInetAddr &addr,
+                              char *body, int len) {
 	// not implemented yet
 	MsSipMsg rspMsg;
 	rspMsg.CloneBasic(sipMsg);
 	rspMsg.m_status = "501";
 	rspMsg.m_reason = "Not Implemented";
-	if (!rspMsg.m_to.HasTag())
-	{
+	if (!rspMsg.m_to.HasTag()) {
 		rspMsg.m_to.AppendTag(GenRandStr(16));
 	}
 	SendSipMsg(rspMsg, sock, addr);
 }
 
-void MsGbServer::HandleResponse(MsSipMsg &sipMsg, shared_ptr<MsSocket> sock, char *body, int len)
-{
+void MsGbServer::HandleResponse(MsSipMsg &sipMsg, shared_ptr<MsSocket> sock, char *body, int len) {
 	int status = stoi(sipMsg.m_status);
 
-	if (status >= 100 && status < 200)
-	{
+	if (status >= 100 && status < 200) {
 		// MS_LOG_INFO("rsp status:%d method:%s", status, sipMsg.m_cseq.GetMethond().c_str());
 		return;
 	}
 
-	if (sipMsg.m_cseq.GetMethond() == "INVITE")
-	{
+	if (sipMsg.m_cseq.GetMethond() == "INVITE") {
 		this->HandleInviteRsp(sipMsg, sock, status, body, len);
-	}
-	else
-	{
-		if (status != 200)
-		{
+	} else {
+		if (status != 200) {
 			MS_LOG_INFO("rsp status:%d method:%s", status, sipMsg.m_cseq.GetMethond().c_str());
 		}
 	}
 }
 
 void MsGbServer::HandleInviteRsp(MsSipMsg &sipMsg, shared_ptr<MsSocket> sock, int status,
-								 char *body, int len)
-{
+                                 char *body, int len) {
 
 	auto it = m_inviteCtx.find(sipMsg.m_callID.m_value);
-	if (it == m_inviteCtx.end())
-	{
+	if (it == m_inviteCtx.end()) {
 		MS_LOG_WARN("invite local call:%s not exist", sipMsg.m_callID.m_value.c_str());
 		return;
 	}
@@ -745,21 +618,15 @@ void MsGbServer::HandleInviteRsp(MsSipMsg &sipMsg, shared_ptr<MsSocket> sock, in
 	this->DelTimer(ctx->m_timer);
 	ctx->m_timer = 0;
 
-	if (!sipMsg.m_contact.GetPort())
-	{
-		BuildContact(sipMsg.m_contact, sipMsg.m_contact.GetID(),
-					 ctx->m_dstIP, ctx->m_dstPort);
-	}
-	else
-	{
+	if (!sipMsg.m_contact.GetPort()) {
+		BuildContact(sipMsg.m_contact, sipMsg.m_contact.GetID(), ctx->m_dstIP, ctx->m_dstPort);
+	} else {
 		string rIP = sipMsg.m_contact.GetIP();
-		if (ctx->m_dstIP != rIP)
-		{
-			MS_LOG_WARN("contact ip diff domain ip:%s contact ip:%s",
-						ctx->m_dstIP.c_str(), rIP.c_str());
+		if (ctx->m_dstIP != rIP) {
+			MS_LOG_WARN("contact ip diff domain ip:%s contact ip:%s", ctx->m_dstIP.c_str(),
+			            rIP.c_str());
 
-			BuildContact(sipMsg.m_contact, sipMsg.m_contact.GetID(),
-						 ctx->m_dstIP, ctx->m_dstPort);
+			BuildContact(sipMsg.m_contact, sipMsg.m_contact.GetID(), ctx->m_dstIP, ctx->m_dstPort);
 		}
 	}
 
@@ -771,34 +638,28 @@ void MsGbServer::HandleInviteRsp(MsSipMsg &sipMsg, shared_ptr<MsSocket> sock, in
 	rsp.m_dstType = ctx->m_srcType;
 	rsp.m_intVal = status;
 
-	if (status == 200)
-	{
+	if (status == 200) {
 		MS_LOG_INFO("invite local call:%s staus:%d", sipMsg.m_callID.m_value.c_str(), status);
 		rsp.m_strVal = string(body, len);
 		this->PostMsg(rsp);
-	}
-	else
-	{
+	} else {
 		MS_LOG_WARN("invite local call:%s staus:%d", sipMsg.m_callID.m_value.c_str(), status);
 		string descb = "Invite failed:";
 		descb += to_string(status);
 
-		if (!strcasecmp(sipMsg.m_contentType.m_value.c_str(), "Application/MANSCDP+xml"))
-		{
+		if (!strcasecmp(sipMsg.m_contentType.m_value.c_str(), "Application/MANSCDP+xml")) {
 			tinyxml2::XMLDocument doc;
 
-			if (!doc.Parse(body, len))
-			{
+			if (!doc.Parse(body, len)) {
 				XMLElement *root = doc.RootElement();
 				XMLElement *ec = root->FirstChildElement("ErrorCode");
 
-				if (ec)
-				{
+				if (ec) {
 					descb += '-';
 					descb += ec->GetText();
 
-					MS_LOG_WARN("invite local call:%s err code:%s",
-								sipMsg.m_callID.m_value.c_str(), ec->GetText());
+					MS_LOG_WARN("invite local call:%s err code:%s", sipMsg.m_callID.m_value.c_str(),
+					            ec->GetText());
 				}
 			}
 		}
@@ -836,19 +697,15 @@ void MsGbServer::HandleInviteRsp(MsSipMsg &sipMsg, shared_ptr<MsSocket> sock, in
 	}
 }
 
-void MsGbServer::HandleAck(MsSipMsg &sipMsg)
-{
+void MsGbServer::HandleAck(MsSipMsg &sipMsg) {
 	// not implemented
 	MS_LOG_ERROR("not implement ack yet");
 }
 
-void MsGbServer::HandleBye(MsSipMsg &sipMsg, shared_ptr<MsSocket> sock, MsInetAddr &addr)
-{
-	do
-	{
+void MsGbServer::HandleBye(MsSipMsg &sipMsg, shared_ptr<MsSocket> sock, MsInetAddr &addr) {
+	do {
 		auto it = m_inviteCtx.find(sipMsg.m_callID.m_value);
-		if (it == m_inviteCtx.end())
-		{
+		if (it == m_inviteCtx.end()) {
 			MS_LOG_WARN("bye call:%s already removed", sipMsg.m_callID.m_value.c_str());
 			break;
 		}
@@ -874,8 +731,7 @@ void MsGbServer::HandleBye(MsSipMsg &sipMsg, shared_ptr<MsSocket> sock, MsInetAd
 	SendSipMsg(rspMsg, sock, addr);
 }
 
-void MsGbServer::HandleCancel(MsSipMsg &sipMsg, shared_ptr<MsSocket> sock, MsInetAddr &addr)
-{
+void MsGbServer::HandleCancel(MsSipMsg &sipMsg, shared_ptr<MsSocket> sock, MsInetAddr &addr) {
 	// not implemented
 	MS_LOG_ERROR("not implement cancel yet");
 	MsSipMsg rspMsg;
@@ -886,8 +742,7 @@ void MsGbServer::HandleCancel(MsSipMsg &sipMsg, shared_ptr<MsSocket> sock, MsIne
 }
 
 void MsGbServer::HandleNotify(MsSipMsg &sipMsg, shared_ptr<MsSocket> sock, MsInetAddr &addr,
-							  char *body, int len)
-{
+                              char *body, int len) {
 	MsSipMsg rspMsg;
 	rspMsg.CloneBasic(sipMsg);
 	rspMsg.m_status = "200";
@@ -896,8 +751,7 @@ void MsGbServer::HandleNotify(MsSipMsg &sipMsg, shared_ptr<MsSocket> sock, MsIne
 
 	tinyxml2::XMLDocument doc;
 	int ret = doc.Parse(body, len);
-	if (ret)
-	{
+	if (ret) {
 		MS_LOG_WARN("parse xml err:%d", ret);
 		return;
 	}
@@ -907,24 +761,20 @@ void MsGbServer::HandleNotify(MsSipMsg &sipMsg, shared_ptr<MsSocket> sock, MsIne
 	XMLElement *devList = root->FirstChildElement("DeviceList");
 	XMLElement *item = nullptr;
 
-	if (devList)
-	{
+	if (devList) {
 		item = devList->FirstChildElement("Item");
 	}
 
 	auto itd = m_registDomain.find(domainID->GetText());
-	if (itd == m_registDomain.end())
-	{
+	if (itd == m_registDomain.end()) {
 		return;
 	}
 	shared_ptr<RegistDomain> dd = itd->second;
 
-	while (item)
-	{
+	while (item) {
 		string devID = item->FirstChildElement("DeviceID")->GetText();
 
-		if (!item->FirstChildElement("Event"))
-		{
+		if (!item->FirstChildElement("Event")) {
 			item = item->NextSiblingElement();
 			continue;
 		}
@@ -933,44 +783,32 @@ void MsGbServer::HandleNotify(MsSipMsg &sipMsg, shared_ptr<MsSocket> sock, MsIne
 
 		MS_LOG_DEBUG("notify device:%s evt:%s", devID.c_str(), evt.c_str());
 
-		if (evt == "ADD")
-		{
+		if (evt == "ADD") {
 			this->AddGbDevice(item, domainID->GetText(), dd);
 			item = item->NextSiblingElement();
 			continue;
-		}
-		else
-		{
+		} else {
 			shared_ptr<MsGbDevice> dev = MsDevMgr::Instance()->FindDevice(devID);
-			if (!dev.get())
-			{
+			if (!dev.get()) {
 				item = item->NextSiblingElement();
 				continue;
 			}
 
-			if (evt == "UPDATE")
-			{
+			if (evt == "UPDATE") {
 				this->AddGbDevice(item, domainID->GetText(), dd);
 				item = item->NextSiblingElement();
 				continue;
-			}
-			else if (evt == "OFF" || evt == "VLOST" || evt == "DEFECT")
-			{
+			} else if (evt == "OFF" || evt == "VLOST" || evt == "DEFECT") {
 				dev->m_status = "OFF";
-			}
-			else if (evt == "DEL")
-			{
+			} else if (evt == "DEL") {
 				MS_LOG_DEBUG("event del dev:%s", dev->m_deviceID.c_str());
-				if (dd->m_device.count(dev->m_deviceID))
-				{
+				if (dd->m_device.count(dev->m_deviceID)) {
 					dd->m_device.erase(dev->m_deviceID);
 					set<string> dx;
 					dx.insert(dev->m_deviceID);
 					MsDevMgr::Instance()->DeleteDevice(dx);
 				}
-			}
-			else if (evt == "ON")
-			{
+			} else if (evt == "ON") {
 				dev->m_status = "ON";
 			}
 
@@ -979,8 +817,7 @@ void MsGbServer::HandleNotify(MsSipMsg &sipMsg, shared_ptr<MsSocket> sock, MsIne
 	}
 }
 
-void MsGbServer::ByeMsg(MsSipMsg &msg, shared_ptr<MsSocket> sock)
-{
+void MsGbServer::ByeMsg(MsSipMsg &msg, shared_ptr<MsSocket> sock) {
 	MsSipMsg bye;
 	MsSipContact &con = msg.m_contact;
 	string dstIP = con.GetIP();
@@ -1007,17 +844,14 @@ void MsGbServer::ByeMsg(MsSipMsg &msg, shared_ptr<MsSocket> sock)
 	SendSipMsg(bye, sock, dstIP, dstPort);
 }
 
-void MsGbServer::HandleMediaStatus(XMLElement *root, MsSipMsg &inMsg)
-{
+void MsGbServer::HandleMediaStatus(XMLElement *root, MsSipMsg &inMsg) {
 	int st = atoi(root->FirstChildElement("NotifyType")->GetText());
 
-	if (st == 121)
-	{
+	if (st == 121) {
 		MS_LOG_INFO("local call:%s status 121", inMsg.m_callID.m_value.c_str());
 
 		auto it = m_inviteCtx.find(inMsg.m_callID.m_value);
-		if (it != m_inviteCtx.end())
-		{
+		if (it != m_inviteCtx.end()) {
 			shared_ptr<InviteCtx> ctx = it->second;
 			this->DelTimer(ctx->m_timer);
 			this->ByeMsg(ctx->m_rsp, ctx->m_domain->m_sock);
@@ -1035,14 +869,12 @@ void MsGbServer::HandleMediaStatus(XMLElement *root, MsSipMsg &inMsg)
 	}
 }
 
-void MsGbServer::HandlePreset(XMLElement *root, const char *deviceID)
-{
+void MsGbServer::HandlePreset(XMLElement *root, const char *deviceID) {
 	XMLElement *sn = root->FirstChildElement("SN");
 	int nSn = atoi(sn->GetText());
 
 	auto it = m_gbSessionCtx.find(nSn);
-	if (it == m_gbSessionCtx.end())
-	{
+	if (it == m_gbSessionCtx.end()) {
 		MS_LOG_WARN("querypreset sn:%d not exist", nSn);
 		return;
 	}
@@ -1052,8 +884,7 @@ void MsGbServer::HandlePreset(XMLElement *root, const char *deviceID)
 	XMLElement *item = nullptr;
 
 	presetList = root->FirstChildElement("PresetList");
-	if (presetList)
-	{
+	if (presetList) {
 		item = presetList->FirstChildElement("Item");
 	}
 
@@ -1062,8 +893,7 @@ void MsGbServer::HandlePreset(XMLElement *root, const char *deviceID)
 	rsp["msg"] = "ok";
 	rsp["result"] = json::array();
 
-	while (item)
-	{
+	while (item) {
 		json j;
 
 		j["presetID"] = item->FirstChildElement("PresetID")->GetText();
@@ -1087,11 +917,9 @@ void MsGbServer::HandlePreset(XMLElement *root, const char *deviceID)
 	m_gbSessionCtx.erase(nSn);
 }
 
-void MsGbServer::InitCatalog(const string &domainID)
-{
+void MsGbServer::InitCatalog(const string &domainID) {
 	auto it = m_registDomain.find(domainID);
-	if (it == m_registDomain.end())
-	{
+	if (it == m_registDomain.end()) {
 		MS_LOG_WARN("catalog:%s not exist", domainID.c_str());
 		return;
 	}
@@ -1101,19 +929,21 @@ void MsGbServer::InitCatalog(const string &domainID)
 	MsSipContact &contact = d->m_contact;
 	MsSipMsg catalog;
 
-	for (auto &dev : devs)
-	{
+	for (auto &dev : devs) {
 		dev.second->m_refreshed = false;
 	}
 
 	BuildSipMsg(m_ip, m_port, m_gbServerId, contact.GetIP(), contact.GetPort(), contact.GetID(),
-				this->GenCSeq(), "MESSAGE", catalog);
+	            this->GenCSeq(), "MESSAGE", catalog);
 
 	catalog.m_contentType.SetValue("Application/MANSCDP+xml");
 
 	char body[512];
-	int len = sprintf(body, "<?xml version=\"1.0\"?>\r\n<Query>\r\n<CmdType>Catalog</CmdType>\r\n<SN>%d</SN>\r\n<DeviceID>%s</DeviceID>\r\n</Query>\r\n",
-					  this->GenCSeq(), contact.GetID().c_str());
+	int len = sprintf(body,
+	                  "<?xml "
+	                  "version=\"1.0\"?>\r\n<Query>\r\n<CmdType>Catalog</CmdType>\r\n<SN>%d</"
+	                  "SN>\r\n<DeviceID>%s</DeviceID>\r\n</Query>\r\n",
+	                  this->GenCSeq(), contact.GetID().c_str());
 	catalog.SetBody(body, len);
 
 	SendSipMsg(catalog, d->m_sock, contact.GetIP(), contact.GetPort());
@@ -1133,33 +963,26 @@ void MsGbServer::InitCatalog(const string &domainID)
 	MS_LOG_INFO("init catalog:%s sn:%d", domainID.c_str(), m_cseq);
 }
 
-void MsGbServer::HttpInitCatalog(MsMsg &msg)
-{
-	for (auto &dd : m_registDomain)
-	{
+void MsGbServer::HttpInitCatalog(MsMsg &msg) {
+	for (auto &dd : m_registDomain) {
 		this->InitCatalog(dd.first);
 	}
 }
 
-void MsGbServer::InitRecordInfo(MsMsg &msg)
-{
+void MsGbServer::InitRecordInfo(MsMsg &msg) {
 	json jRsp;
 
-	do
-	{
+	do {
 		string devID, st, et;
 		string recordType;
 
-		try
-		{
+		try {
 			json j = json::parse(msg.m_strVal.c_str());
 			devID = j["deviceId"].get<string>();
 			st = j["startTime"].get<string>();
 			et = j["endTime"].get<string>();
 			recordType = j["type"].is_null() ? "" : j["type"].get<string>();
-		}
-		catch (json::exception &e)
-		{
+		} catch (json::exception &e) {
 			MS_LOG_WARN("json err:%s", e.what());
 			jRsp["code"] = 1;
 			jRsp["msg"] = "json error";
@@ -1167,8 +990,7 @@ void MsGbServer::InitRecordInfo(MsMsg &msg)
 		}
 
 		shared_ptr<MsGbDevice> dev = MsDevMgr::Instance()->FindDevice(devID);
-		if (!dev.get())
-		{
+		if (!dev.get()) {
 			MS_LOG_WARN("dev:%s not exist", devID.c_str());
 			jRsp["code"] = 1;
 			jRsp["msg"] = "dev not exist";
@@ -1176,8 +998,7 @@ void MsGbServer::InitRecordInfo(MsMsg &msg)
 		}
 
 		auto itd = m_registDomain.find(dev->m_domainID);
-		if (itd == m_registDomain.end())
-		{
+		if (itd == m_registDomain.end()) {
 			MS_LOG_WARN("dev domain:%s not exist", dev->m_domainID.c_str());
 			jRsp["code"] = 1;
 			jRsp["msg"] = "dev domain not exist";
@@ -1188,21 +1009,21 @@ void MsGbServer::InitRecordInfo(MsMsg &msg)
 		MsSipContact &con = domain->m_contact;
 		MsSipMsg record;
 
-		BuildSipMsg(m_ip, m_port, m_gbServerId, con.GetIP(), con.GetPort(), devID,
-					this->GenCSeq(), "MESSAGE", record);
+		BuildSipMsg(m_ip, m_port, m_gbServerId, con.GetIP(), con.GetPort(), devID, this->GenCSeq(),
+		            "MESSAGE", record);
 
 		record.m_contentType.SetValue("Application/MANSCDP+xml");
 
-		if (recordType.size() == 0)
-		{
+		if (recordType.size() == 0) {
 			recordType = MsConfig::Instance()->GetConfigStr("queryRecordType");
 		}
 
 		char body[512];
-		int len = sprintf(body, "<?xml version=\"1.0\"?>\r\n<Query>\r\n<CmdType>RecordInfo</CmdType>\r\n\
+		int len =
+		    sprintf(body, "<?xml version=\"1.0\"?>\r\n<Query>\r\n<CmdType>RecordInfo</CmdType>\r\n\
 <SN>%d</SN>\r\n<DeviceID>%s</DeviceID>\r\n<StartTime>%s</StartTime>\r\n<EndTime>%s</EndTime>\r\n\
 <Type>%s</Type>\r\n</Query>\r\n",
-						  this->GenCSeq(), devID.c_str(), st.c_str(), et.c_str(), recordType.c_str());
+		            this->GenCSeq(), devID.c_str(), st.c_str(), et.c_str(), recordType.c_str());
 		record.SetBody(body, len);
 
 		SendSipMsg(record, domain->m_sock, con.GetIP(), con.GetPort());
@@ -1237,17 +1058,14 @@ void MsGbServer::InitRecordInfo(MsMsg &msg)
 	this->PostMsg(msRsp);
 }
 
-void MsGbServer::QueryPreset(MsMsg &msg)
-{
+void MsGbServer::QueryPreset(MsMsg &msg) {
 	json jRsp;
 
-	do
-	{
+	do {
 		string devID = msg.m_strVal;
 		shared_ptr<MsGbDevice> dev = MsDevMgr::Instance()->FindDevice(devID);
 
-		if (!dev.get())
-		{
+		if (!dev.get()) {
 			MS_LOG_WARN("dev:%s not exist", devID.c_str());
 			jRsp["code"] = 1;
 			jRsp["msg"] = "dev not exist";
@@ -1255,8 +1073,7 @@ void MsGbServer::QueryPreset(MsMsg &msg)
 		}
 
 		auto itd = m_registDomain.find(dev->m_domainID);
-		if (itd == m_registDomain.end())
-		{
+		if (itd == m_registDomain.end()) {
 			MS_LOG_WARN("dev domain:%s not exist", dev->m_domainID.c_str());
 			jRsp["code"] = 1;
 			jRsp["msg"] = "dev domain not exist";
@@ -1267,13 +1084,15 @@ void MsGbServer::QueryPreset(MsMsg &msg)
 		MsSipContact &con = domain->m_contact;
 		MsSipMsg record;
 
-		BuildSipMsg(m_ip, m_port, m_gbServerId, con.GetIP(), con.GetPort(), devID, this->GenCSeq(), "MESSAGE", record);
+		BuildSipMsg(m_ip, m_port, m_gbServerId, con.GetIP(), con.GetPort(), devID, this->GenCSeq(),
+		            "MESSAGE", record);
 		record.m_contentType.SetValue("Application/MANSCDP+xml");
 
 		char body[512];
-		int len = sprintf(body, "<?xml version=\"1.0\"?>\r\n<Query>\r\n<CmdType>PresetQuery</CmdType>\r\n\
+		int len =
+		    sprintf(body, "<?xml version=\"1.0\"?>\r\n<Query>\r\n<CmdType>PresetQuery</CmdType>\r\n\
 <SN>%d</SN>\r\n<DeviceID>%s</DeviceID>\r\n</Query>\r\n",
-						  this->GenCSeq(), devID.c_str());
+		            this->GenCSeq(), devID.c_str());
 		record.SetBody(body, len);
 
 		SendSipMsg(record, domain->m_sock, con.GetIP(), con.GetPort());
@@ -1305,13 +1124,11 @@ void MsGbServer::QueryPreset(MsMsg &msg)
 	this->PostMsg(msRsp);
 }
 
-void MsGbServer::QueryPresetTimeout(int sn)
-{
+void MsGbServer::QueryPresetTimeout(int sn) {
 	MS_LOG_WARN("querypreset sn:%d time out", sn);
 
 	auto it = m_gbSessionCtx.find(sn);
-	if (it != m_gbSessionCtx.end())
-	{
+	if (it != m_gbSessionCtx.end()) {
 		shared_ptr<GbSessionCtx> &x = it->second;
 		MsMsg &msg = x->m_req;
 		MsMsg msRsp;
@@ -1332,8 +1149,7 @@ void MsGbServer::QueryPresetTimeout(int sn)
 	}
 }
 
-void MsGbServer::PtzControl(MsMsg &msg)
-{
+void MsGbServer::PtzControl(MsMsg &msg) {
 	SPtzCmd *pp = static_cast<SPtzCmd *>(msg.m_ptr);
 
 	string devID = pp->m_devid;
@@ -1353,8 +1169,7 @@ void MsGbServer::PtzControl(MsMsg &msg)
 	char buf[64];
 	string ptzCmd;
 
-	switch (nCmd)
-	{
+	switch (nCmd) {
 	case 1: // left
 	case 2: // right
 	{
@@ -1362,8 +1177,7 @@ void MsGbServer::PtzControl(MsMsg &msg)
 		p5 = 128;
 		p6 = 0;
 		p7 = 0;
-	}
-	break;
+	} break;
 
 	case 3: // up
 	case 4: // down
@@ -1372,8 +1186,7 @@ void MsGbServer::PtzControl(MsMsg &msg)
 		p5 = 0;
 		p6 = 128;
 		p7 = 0;
-	}
-	break;
+	} break;
 
 	case 5: // zoom in
 	case 6: // zoom out
@@ -1382,8 +1195,7 @@ void MsGbServer::PtzControl(MsMsg &msg)
 		p5 = 0;
 		p6 = 0;
 		p7 = 128;
-	}
-	break;
+	} break;
 
 	case 11: // left up
 	case 12: // right up
@@ -1402,29 +1214,22 @@ void MsGbServer::PtzControl(MsMsg &msg)
 		p5 = 128;
 		p6 = 128;
 		p7 = 0;
-	}
-	break;
+	} break;
 
 	case 7: // goto preset
 	case 8: // set preset
 	case 9: // del preset
 	{
-		if (nCmd == 7)
-		{
+		if (nCmd == 7) {
 			p4 = 0x82;
-		}
-		else if (nCmd == 8)
-		{
+		} else if (nCmd == 8) {
 			p4 = 0x81;
-		}
-		else
-		{
+		} else {
 			p4 = 0x83;
 		}
 
 		int presetid = atoi(pp->m_presetID.c_str());
-		if (presetid <= 0 || presetid > 255)
-		{
+		if (presetid <= 0 || presetid > 255) {
 			presetid = 1;
 		}
 
@@ -1432,8 +1237,7 @@ void MsGbServer::PtzControl(MsMsg &msg)
 		p6 = presetid;
 		p7 = 0;
 		timeout = 0;
-	}
-	break;
+	} break;
 
 	default:
 		return;
@@ -1445,47 +1249,44 @@ void MsGbServer::PtzControl(MsMsg &msg)
 	ptzCmd = buf;
 
 	shared_ptr<MsGbDevice> dev = MsDevMgr::Instance()->FindDevice(devID);
-	if (!dev.get())
-	{
+	if (!dev.get()) {
 		MS_LOG_WARN("dev:%s not exist", devID.c_str());
 		return;
 	}
 
 	auto itd = m_registDomain.find(dev->m_domainID);
-	if (itd == m_registDomain.end())
-	{
+	if (itd == m_registDomain.end()) {
 		MS_LOG_WARN("dev domain:%s not exist", dev->m_domainID.c_str());
 		return;
 	}
 
 	shared_ptr<RegistDomain> domain = itd->second;
 
-	thread dd(&MsGbServer::DoPtz,
-			  dynamic_pointer_cast<MsGbServer>(shared_from_this()),
-			  domain, devID, ptzCmd, timeout);
+	thread dd(&MsGbServer::DoPtz, dynamic_pointer_cast<MsGbServer>(shared_from_this()), domain,
+	          devID, ptzCmd, timeout);
 	dd.detach();
 }
 
-void MsGbServer::DoPtz(shared_ptr<RegistDomain> domain, string devID, string ptzCmd, int timeout)
-{
+void MsGbServer::DoPtz(shared_ptr<RegistDomain> domain, string devID, string ptzCmd, int timeout) {
 	MsSipContact &con = domain->m_contact;
 	MsSipMsg record;
 
-	BuildSipMsg(m_ip, m_port, m_gbServerId, con.GetIP(), con.GetPort(), devID, this->GenCSeq(), "MESSAGE", record);
+	BuildSipMsg(m_ip, m_port, m_gbServerId, con.GetIP(), con.GetPort(), devID, this->GenCSeq(),
+	            "MESSAGE", record);
 
 	record.m_contentType.SetValue("Application/MANSCDP+xml");
 
 	char body[512];
-	int len = sprintf(body, "<?xml version=\"1.0\"?>\r\n<Control>\r\n<CmdType>DeviceControl</CmdType>\r\n\
+	int len =
+	    sprintf(body, "<?xml version=\"1.0\"?>\r\n<Control>\r\n<CmdType>DeviceControl</CmdType>\r\n\
 <SN>%d</SN>\r\n<DeviceID>%s</DeviceID>\r\n<PTZCmd>%s</PTZCmd>\r\n<Info><ControlPriority>5</ControlPriority></Info>\r\n\
 </Control>\r\n",
-					  this->GenCSeq(), devID.c_str(), ptzCmd.c_str());
+	            this->GenCSeq(), devID.c_str(), ptzCmd.c_str());
 	record.SetBody(body, len);
 
 	SendSipMsg(record, domain->m_sock, con.GetIP(), con.GetPort());
 
-	if (timeout)
-	{
+	if (timeout) {
 		SleepMs(timeout);
 
 		ptzCmd = "A50F4D0000000001";
@@ -1495,21 +1296,17 @@ void MsGbServer::DoPtz(shared_ptr<RegistDomain> domain, string devID, string ptz
 	}
 }
 
-void MsGbServer::ClearDomain(shared_ptr<RegistDomain> domain)
-{
+void MsGbServer::ClearDomain(shared_ptr<RegistDomain> domain) {
 	this->DelTimer(domain->m_timer);
 	domain->m_timer = 0;
 
-	for (auto &dd : domain->m_device)
-	{
+	for (auto &dd : domain->m_device) {
 		dd.second->m_status = "OFF";
 	}
 
-	for (auto it = m_inviteCtx.begin(); it != m_inviteCtx.end();)
-	{
+	for (auto it = m_inviteCtx.begin(); it != m_inviteCtx.end();) {
 		shared_ptr<InviteCtx> ctx = it->second;
-		if (ctx->m_domain == domain)
-		{
+		if (ctx->m_domain == domain) {
 			this->ByeMsg(ctx->m_rsp, domain->m_sock);
 			this->DelTimer(ctx->m_timer);
 
@@ -1522,79 +1319,63 @@ void MsGbServer::ClearDomain(shared_ptr<RegistDomain> domain)
 			this->PostMsg(rsp);
 
 			it = m_inviteCtx.erase(it);
-		}
-		else
-		{
+		} else {
 			++it;
 		}
 	}
 
-	for (auto it = m_gbSessionCtx.begin(); it != m_gbSessionCtx.end();)
-	{
+	for (auto it = m_gbSessionCtx.begin(); it != m_gbSessionCtx.end();) {
 		shared_ptr<GbSessionCtx> &ctx = it->second;
-		if (ctx->m_domain == domain)
-		{
+		if (ctx->m_domain == domain) {
 			this->DelTimer(ctx->m_timer);
 			it = m_gbSessionCtx.erase(it);
-		}
-		else
-		{
+		} else {
 			++it;
 		}
 	}
 }
 
-int MsGbServer::GenCSeq()
-{
-	if (++m_cseq <= 0)
-	{
+int MsGbServer::GenCSeq() {
+	if (++m_cseq <= 0) {
 		m_cseq = 1;
 	}
 
 	return m_cseq;
 }
 
-void MsGbServer::OnRegTimeout(string &id)
-{
+void MsGbServer::OnRegTimeout(string &id) {
 	MS_LOG_INFO("reg:%s time out", id.c_str());
 
 	auto it = m_registDomain.find(id);
-	if (it != m_registDomain.end())
-	{
+	if (it != m_registDomain.end()) {
 		this->ClearDomain(it->second);
 		m_registDomain.erase(it);
 	}
 }
 
-void MsGbServer::OnCataTimeout(int sn)
-{
+void MsGbServer::OnCataTimeout(int sn) {
 	MS_LOG_WARN("catalog sn:%d time out", sn);
 
 	auto it = m_gbSessionCtx.find(sn);
 
-	if (it != m_gbSessionCtx.end())
-	{
+	if (it != m_gbSessionCtx.end()) {
 		shared_ptr<GbSessionCtx> &ctx = it->second;
 
-		if (ctx->m_recevd < ctx->m_sum || ctx->m_sum == 0)
-		{
+		if (ctx->m_recevd < ctx->m_sum || ctx->m_sum == 0) {
 			return;
 		}
 
 		set<string> delDev;
 		map<string, shared_ptr<MsGbDevice>> &devs = ctx->m_domain->m_device;
 
-		for (auto &dev : devs)
-		{
-			if (!dev.second->m_refreshed)
-			{
+		for (auto &dev : devs) {
+			if (!dev.second->m_refreshed) {
 				MS_LOG_DEBUG("catalog refersh del dev:%s", dev.second->m_deviceID.c_str());
 				delDev.insert(dev.second->m_deviceID);
 			}
 		}
 
-		for (auto &dev : delDev)
-		{
+		for (auto &dev : delDev) {
 			devs.erase(dev);
 		}
 
@@ -1604,13 +1385,11 @@ void MsGbServer::OnCataTimeout(int sn)
 	}
 }
 
-void MsGbServer::OnRecordTimeout(int sn)
-{
+void MsGbServer::OnRecordTimeout(int sn) {
 	MS_LOG_WARN("record sn:%d time out", sn);
 
 	auto it = m_gbSessionCtx.find(sn);
-	if (it != m_gbSessionCtx.end())
-	{
+	if (it != m_gbSessionCtx.end()) {
 		shared_ptr<GbSessionCtx> &x = it->second;
 		MsMsg &msg = x->m_req;
 		MsMsg msRsp;
@@ -1633,13 +1412,11 @@ void MsGbServer::OnRecordTimeout(int sn)
 	}
 }
 
-void MsGbServer::OnInviteTimeout(string &val)
-{
+void MsGbServer::OnInviteTimeout(string &val) {
 	MS_LOG_WARN("invite local call:%s time out", val.c_str());
 
 	auto it = m_inviteCtx.find(val);
-	if (it == m_inviteCtx.end())
-	{
+	if (it == m_inviteCtx.end()) {
 		MS_LOG_WARN("invite local call:%s not exist", val.c_str());
 		return;
 	}
@@ -1657,15 +1434,13 @@ void MsGbServer::OnInviteTimeout(string &val)
 	m_inviteCtx.erase(it);
 }
 
-void MsGbServer::GetRegistDomain(MsMsg &msg)
-{
+void MsGbServer::GetRegistDomain(MsMsg &msg) {
 	json j;
 	j["code"] = 0;
 	j["msg"] = "success";
 	j["result"] = json::array();
 
-	for (auto it = m_registDomain.begin(); it != m_registDomain.end(); ++it)
-	{
+	for (auto it = m_registDomain.begin(); it != m_registDomain.end(); ++it) {
 		shared_ptr<RegistDomain> &domain = it->second;
 		json dd;
 
@@ -1685,8 +1460,7 @@ void MsGbServer::GetRegistDomain(MsMsg &msg)
 	this->PostMsg(rsp);
 }
 
-void MsGbServer::InitInvite(MsMsg &msg)
-{
+void MsGbServer::InitInvite(MsMsg &msg) {
 	SGbContext *p = static_cast<SGbContext *>(msg.m_ptr);
 
 	string &reqID = p->gbID;
@@ -1698,8 +1472,7 @@ void MsGbServer::InitInvite(MsMsg &msg)
 	string &et = p->endTime;
 
 	auto dev = MsDevMgr::Instance()->FindDevice(reqID);
-	if (!dev)
-	{
+	if (!dev) {
 		MS_LOG_WARN("invite dev:%s not exist", reqID.c_str());
 		MsMsg iRsp;
 		iRsp.m_msgID = MS_INVITE_CALL_RSP;
@@ -1712,8 +1485,7 @@ void MsGbServer::InitInvite(MsMsg &msg)
 	}
 
 	auto itd = m_registDomain.find(dev->m_domainID);
-	if (itd == m_registDomain.end())
-	{
+	if (itd == m_registDomain.end()) {
 		MS_LOG_WARN("invite dev domain:%s not exist", dev->m_domainID.c_str());
 		MsMsg iRsp;
 		iRsp.m_msgID = MS_INVITE_CALL_RSP;
@@ -1731,15 +1503,14 @@ void MsGbServer::InitInvite(MsMsg &msg)
 	int dstPort = con.GetPort();
 
 	MsSipMsg invite;
-	BuildSipMsg(m_ip, m_port, m_gbServerId, dstIP, dstPort, reqID,
-				this->GenCSeq(), "INVITE", invite);
+	BuildSipMsg(m_ip, m_port, m_gbServerId, dstIP, dstPort, reqID, this->GenCSeq(), "INVITE",
+	            invite);
 	BuildContact(invite.m_contact, m_gbServerId, m_ip, m_port);
 	BuildSubject(invite.m_subject, reqID, m_gbServerId, type == 0);
 	invite.m_contentType.SetValue("application/sdp");
 
 	string mapIP = MsDevMgr::Instance()->GetMapIP(rtpIP);
-	if (mapIP.size())
-	{
+	if (mapIP.size()) {
 		MS_LOG_INFO("map ip %s->%s", rtpIP.c_str(), mapIP.c_str());
 		rtpIP = mapIP;
 	}
@@ -1750,12 +1521,9 @@ void MsGbServer::InitInvite(MsMsg &msg)
 	sdp += rtpIP;
 	sdp += "\r\ns=";
 
-	if (!type)
-	{
+	if (!type) {
 		sdp += "Play";
-	}
-	else
-	{
+	} else {
 		sdp += "Playback\r\nu=";
 		sdp += reqID;
 		sdp += ':';
@@ -1771,19 +1539,14 @@ void MsGbServer::InitInvite(MsMsg &msg)
 	sdp += "\r\nm=video ";
 	sdp += to_string(rtpPort);
 
-	if (transport == EN_UDP)
-	{
+	if (transport == EN_UDP) {
 		sdp += " RTP/AVP 96\r\na=rtpmap:96 PS/90000\r\na=recvonly\r\n";
-	}
-	else
-	{
+	} else {
 		sdp += " TCP/RTP/AVP 96\r\na=rtpmap:96 PS/90000\r\n";
 
-		if (transport == EN_TCP_ACTIVE)
-		{
+		if (transport == EN_TCP_ACTIVE) {
 			sdp += "a=setup:active\r\n";
-		}
-		else // transport == EN_TCP_PASSIVE
+		} else // transport == EN_TCP_PASSIVE
 		{
 			sdp += "a=setup:passive\r\n";
 		}
@@ -1821,6 +1584,5 @@ void MsGbServer::InitInvite(MsMsg &msg)
 	iRsp.m_strVal = invite.m_callID.m_value;
 	this->PostMsg(iRsp);
 
-	MS_LOG_INFO("gb server invite:%s call:%s", reqID.c_str(),
-				invite.m_callID.m_value.c_str());
+	MS_LOG_INFO("gb server invite:%s call:%s", reqID.c_str(), invite.m_callID.m_value.c_str());
 }

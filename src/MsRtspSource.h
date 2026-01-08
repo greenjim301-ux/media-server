@@ -1,17 +1,16 @@
 #pragma once
 #include "MsResManager.h"
 
-class MsRtspSource : public MsMediaSource
-{
+class MsRtspSource : public MsMediaSource {
 public:
-    MsRtspSource(const std::string &streamID, const std::string &url, int id)
-        : MsMediaSource(streamID, MS_RTSP_SOURCE, id), m_url(url) {}
+	MsRtspSource(const std::string &streamID, const std::string &url, int id)
+	    : MsMediaSource(streamID, MS_RTSP_SOURCE, id), m_url(url) {}
 
-    void Work() override;
-
-private:
-    void OnRun();
+	void Work() override;
 
 private:
-    std::string m_url;
+	void OnRun();
+
+private:
+	std::string m_url;
 };
