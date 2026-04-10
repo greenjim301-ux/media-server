@@ -30,8 +30,33 @@ void MsGbServerHandler::HandleRead(shared_ptr<MsEvent> evt) {
 	int oriTotal = m_bufOff;
 	char *p2 = m_bufPtr.get();
 
+	MS_LOG_VERBS("recv %d:\n%s", m_bufOff, p2);
+
 	while (m_bufOff > 0) {
+		// Check for STUN Binding Request (type=0x0001, magic cookie=0x2112A442) and skip it
+		if (m_bufOff >= 20 && (unsigned char)p2[0] == 0x00 && (unsigned char)p2[1] == 0x01 &&
+		    (unsigned char)p2[4] == 0x21 && (unsigned char)p2[5] == 0x12 &&
+		    (unsigned char)p2[6] == 0xA4 && (unsigned char)p2[7] == 0x42) {
+			int stunBodyLen = ((unsigned char)p2[2] << 8) | (unsigned char)p2[3];
+			int stunTotalLen = 20 + stunBodyLen;
+			if (stunTotalLen > m_bufOff) {
+				// the whole STUN message has not been received yet, wait for more data
+				MS_LOG_DEBUG("gb server incomplete STUN message, need len:%d left:%d", stunTotalLen,
+				             m_bufOff);
+				return;
+			}
+			MS_LOG_DEBUG("gb server skip STUN Binding Request, len:%d", stunTotalLen);
+			p2 += stunTotalLen;
+			m_bufOff -= stunTotalLen;
+			continue;
+		}
+
 		if (!IsHeaderComplete(p2)) {
+			MS_LOG_DEBUG("gb server header not complete: %s", p2);
+			// print first 4 bytes of p2 in hex for debugging
+			MS_LOG_DEBUG("gb server header not complete first 4 bytes: %02x%02x%02x%02x",
+			             (unsigned char)p2[0], (unsigned char)p2[1], (unsigned char)p2[2],
+			             (unsigned char)p2[3]);
 			if (m_bufOff == m_bufSize - 1) // header too large, reset buf
 			{
 				MS_LOG_DEBUG("gb server buf full: %s", m_bufPtr.get());
@@ -60,7 +85,7 @@ void MsGbServerHandler::HandleRead(shared_ptr<MsEvent> evt) {
 			return;
 		}
 
-		MS_LOG_VERBS("recv:\n%s", oriP2);
+		// MS_LOG_VERBS("recv:\n%s", oriP2);
 
 		if (sipMsg.m_vias.back().HasRport() && !isTcp) {
 			sipMsg.m_vias.back().Rebuild(sipMsg.m_vias.back().GetTransport(),
@@ -90,6 +115,8 @@ void MsGbServerHandler::HandleRead(shared_ptr<MsEvent> evt) {
 		p2 += cntLen;
 		m_bufOff -= (p2 - oriP2);
 	}
+
+	// MS_LOG_DEBUG("gb server all processed, oriTotal:%d left:%d", oriTotal, m_bufOff);
 }
 
 void MsGbServerHandler::HandleClose(shared_ptr<MsEvent> evt) {
