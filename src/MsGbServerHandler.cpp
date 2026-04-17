@@ -33,6 +33,14 @@ void MsGbServerHandler::HandleRead(shared_ptr<MsEvent> evt) {
 	MS_LOG_VERBS("recv %d:\n%s", m_bufOff, p2);
 
 	while (m_bufOff > 0) {
+		// bypass \r\n\r\n, which is for NAT keep-alive
+		if (m_bufOff >= 4 && strncmp(p2, "\r\n\r\n", 4) == 0) {
+			// MS_LOG_DEBUG("gb server skip keep-alive packet");
+			p2 += 4;
+			m_bufOff -= 4;
+			continue;
+		}
+
 		// Check for STUN Binding Request (type=0x0001, magic cookie=0x2112A442) and skip it
 		if (m_bufOff >= 20 && (unsigned char)p2[0] == 0x00 && (unsigned char)p2[1] == 0x01 &&
 		    (unsigned char)p2[4] == 0x21 && (unsigned char)p2[5] == 0x12 &&
